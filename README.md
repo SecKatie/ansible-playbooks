@@ -1,304 +1,103 @@
-# Ansible Playbooks for Infrastructure and Application Deployment
-
-This repository contains Ansible playbooks and roles to automate the configuration and deployment of various services and applications. It provides a structured approach to manage infrastructure as code, ensuring consistency and repeatability across different environments.
-
-## Structure
-
-The repository is organized into the following key components:
-
-*   **`site.yml`**: The main playbook that orchestrates the execution of different roles on different hosts.
-*   **`dns.yml`**: Playbook specifically for configuring DNS settings, particularly for Cloudflare.
-*   **`webui.yml`**: Playbook for deploying OpenWebUI and configuring the hosts file.
-*   **`reboot.yml`**: Playbook to reboot Raspberry Pi devices.
-*   **`roles/`**:  A directory containing reusable Ansible roles, each responsible for configuring a specific service or application.
-*   **`apps/`**: Contains Kubernetes manifests for different applications, managed using `kustomize`.
-
-## Playbooks
-
-### `site.yml`
-
-This is the primary entry point for running the Ansible configuration. It defines the target hosts and the roles to be applied to each.
-
-```yaml
----
-- name: Setup nix environment
-  hosts: localhost
-  gather_facts: false
-  roles:
-    - lix
-    - nix_darwin
-
-- name: Setup rpi_cgroup
-  hosts: raspberrypi
-  gather_facts: false
-  roles:
-    - rpi_cgroup
-
-- name: Setup k8s_dashboard
-  hosts: localhost
-  gather_facts: false
-  roles:
-    - k8s_dashboard
-
-- name: Setup rpi_iscsi
-  hosts: raspberrypi
-  gather_facts: false
-  roles:
-    - rpi_iscsi
-
-- name: Deploy Docmost
-  hosts: localhost
-  gather_facts: true
-  roles:
-    - deploy_docmost
-```
-
-This playbook performs the following actions:
-
-1.  **Nix Environment Setup**: Configures the Nix package manager environment on `localhost`.
-2.  **Raspberry Pi Cgroup Setup**: Configures cgroup settings on Raspberry Pi devices.
-3.  **Kubernetes Dashboard Setup**: Deploys and configures a Kubernetes dashboard on `localhost`.
-4.  **Raspberry Pi iSCSI Setup**: Configures iSCSI initiator on Raspberry Pi devices.
-5.  **Docmost Deployment**: Deploys the Docmost application to a Kubernetes cluster using `kustomize`.
-
-### `dns.yml`
-
-This playbook is responsible for managing DNS records using Cloudflare's API.
-
-```yaml
----
-- name: Configure DNS settings
-  hosts: localhost
-  gather_facts: false
-
-  vars_prompt:
-    - name: prompt_token
-      prompt: "Enter your Cloudflare API token"
-      private: true
-      default: ""
-
-  roles:
-    - dns_cname
-```
-
-It prompts for a Cloudflare API token (if not already set as an environment variable) and then applies the `dns_cname` role.
-
-### `webui.yml`
-
-This playbook deploys OpenWebUI to a Kubernetes cluster and configures a hosts entry.
-
-```yaml
----
-- name: Deploy OpenWebUI and configure hosts entry
-  hosts: localhost
-  gather_facts: true
-  vars:
-    k8s_openwebui_hostname: "webui.local"
-    hosts_entry_ip: "172.16.10.150"
-    hosts_entry_hostnames:
-      - "{{ k8s_openwebui_hostname }}"
-
-  roles:
-    - k8s_openwebui
-    - hosts_entry
-```
-
-It defines variables for the hostname and IP address and then applies the `k8s_openwebui` and `hosts_entry` roles.
-
-### `reboot.yml`
-
-This playbook reboots Raspberry Pi devices.
-
-```yaml
----
-- name: Reboot Raspberry Pi devices
-  hosts: raspberrypi
-  roles:
-    - reboot
-```
-
-It applies the `reboot` role to all hosts in the `raspberrypi` group.
-
-## Roles
-
-### `lix`
-
-Installs the Lix package manager, which enhances Nix package management experience.
-
-*   **Tasks**: Downloads and executes the Lix installation script.
-
-### `nix_darwin`
-
-Configures Nix on macOS using `nix-darwin`.
-
-*   **Tasks**: Runs the `nix-darwin switch` command to apply the configuration defined in `~/.config/nix-darwin`.
-
-### `rpi_cgroup`
-
-Enables cgroup memory management on Raspberry Pi devices.
-
-*   **Tasks**: Modifies `/boot/firmware/cmdline.txt` to include `cgroup_memory=1 cgroup_enable=memory`.
-
-### `k8s_dashboard`
-
-Deploys and configures the Kubernetes Dashboard.
-
-*   **Tasks**:
-    *   Creates a `kubernetes-dashboard` namespace.
-    *   Downloads the recommended Kubernetes Dashboard manifest.
-    *   Deploys the Dashboard.
-    *   Updates the service type (NodePort or LoadBalancer).
-    *   Creates an admin user with cluster-admin privileges.
-    *   Retrieves the admin token for accessing the dashboard.
-*   **Variables**:
-    *   `k8s_dashboard_version`: Version of the Kubernetes Dashboard to deploy (default: `v2.7.0`).
-    *   `k8s_dashboard_namespace`: Namespace where the Dashboard will be deployed (default: `kubernetes-dashboard`).
-    *   `k8s_dashboard_service_type`: Service type for accessing the Dashboard (default: `NodePort`).  Can be set to `LoadBalancer`.
-    *   `k8s_dashboard_node_port`:  NodePort value if `k8s_dashboard_service_type` is set to `NodePort` (default: `30443`).
-
-### `rpi_iscsi`
-
-Configures an iSCSI initiator on Raspberry Pi devices.
-
-*   **Tasks**:
-    *   Installs the `open-iscsi` package.
-    *   Enables and starts the `iscsid` and `iscsi` services.
-    *   Configures `/etc/iscsi/iscsid.conf` to enable automatic startup and set timeout values.
-*   **Handlers**: Restarts the `iscsid` and `iscsi` services.
-
-### `dns_cname`
-
-Creates a CNAME record in Cloudflare DNS.
-
-*   **Tasks**: Uses the `community.general.cloudflare_dns` module to create or update a CNAME record.
-*   **Variables**:
-    *   `dns_cname_zone`: The Cloudflare zone (domain name) where the record will be created (default: `mulliken.net`).
-    *   `dns_cname_record`: The name of the CNAME record (default: `links`).
-    *   `dns_cname_target`: The target of the CNAME record (default: `my-link-blog.fly.dev`).
-    *   `dns_cname_cloudflare_api_token`:  The Cloudflare API token.  It first checks for an environment variable `CLOUDFLARE_API_TOKEN`. If not found, it prompts the user for the token.
-
-### `deploy_docmost`
-
-Deploys the Docmost application to a Kubernetes cluster using `kustomize`.
-
-*   **Tasks**:
-    *   Deploys Docmost using the `kubernetes.core.k8s` module and the `kustomize` lookup.
-*   **Variables**:
-    *   `kubeconfig_path`: Path to the kubeconfig file (default: `{{ ansible_env.HOME }}/.kube/config`).
-    *   `k8s_context`: Kubernetes context to use (optional, default: "").
-    *   `docmost_base_dir`: Base directory where Docmost kustomize files are located (default: `{{ playbook_dir }}`).
-    *   `docmost_kustomize_path`: Path to the kustomize directory for Docmost relative to `base_dir` (default: `"apps/docmost"`).
-
-### `k8s_openwebui`
-
-This role is a placeholder and currently doesn't contain any tasks related to deploying OpenWebUI.  It would need to be implemented with the actual deployment logic.
-
-### `hosts_entry`
-
-Adds or updates entries in the `/etc/hosts` file.
-
-*   **Tasks**:
-    *   Backs up the existing `/etc/hosts` file (if `hosts_entry_backup` is true).
-    *   Adds or updates entries for the specified hostnames and IP address.
-*   **Variables**:
-    *   `hosts_entry_ip`: IP address to use for the hosts entries (default: `127.0.0.1`).
-    *   `hosts_entry_hostnames`: List of hostnames to add to `/etc/hosts` (default: `[]`).
-    *   `hosts_entry_backup`: Whether to backup the hosts file before modifying (default: `true`).
-    *   `hosts_entry_state`: State of the hosts entries (default: `"present"`).  Can also be set to `"absent"`.
-
-### `reboot`
-
-Reboots the target machine.
-
-*   **Tasks**:
-    *   Reboots the Raspberry Pi using the `ansible.builtin.reboot` module.
-
-## Application Deployments (apps/)
-
-The `apps/` directory contains Kubernetes manifests and `kustomization.yaml` files for deploying various applications. `kustomize` is used to manage these deployments.  Examples include Docmost and Ghost.
-
-### Docmost
-
-The `apps/docmost` directory contains the following files:
-
-*   `kustomization.yaml`: Defines the resources to be deployed.
-*   `namespace.yaml`: Creates the `docmost` namespace.
-*   `secrets.yaml`: Defines secrets for the application (database password, etc.).
-*   `configmap.yaml`: Defines configuration parameters for the application.
-*   `storage.yaml`: Defines persistent volume claims for storage.
-*   `postgres.yaml`: Defines the PostgreSQL database deployment.
-*   `redis.yaml`: Defines the Redis deployment.
-*   `docmost.yaml`: Defines the Docmost application deployment.
-*   `cloudflared.yaml`: Defines a Cloudflare Tunnel deployment for exposing the application.
-*   `docker-compose.yml`: A docker-compose file containing the deployment. Note that this is not used by the ansible scripts.
-
-### Ghost
-
-The `apps/ghost` directory contains the following files:
-
-*   `kustomization.yaml`: Defines the resources to be deployed.
-*   `namespace.yaml`: Creates the `ghost` namespace.
-*   `statefulset.yaml`: Defines the Ghost application deployment as a StatefulSet.
-*   `service.yaml`: Defines the Ghost service.
-*   `mysql-statefulset.yaml`: Defines the MySQL database deployment as a StatefulSet.
-*   `mysql-service.yaml`: Defines the MySQL service.
-*   `mysql-secret.yaml`: Defines the MySQL root password as a secret.
-*   `cloudflared.yaml`: Defines a Cloudflare Tunnel deployment for exposing the application.
-
-## Requirements
-
-*   Ansible (version X.X or higher)
-*   Python 3.x
-*   `community.general` Ansible collection: `ansible-galaxy collection install community.general`
-*   `kubernetes.core` Ansible collection: `ansible-galaxy collection install kubernetes.core`
-*   kubectl configured with access to your Kubernetes cluster (required for `deploy_docmost` and `k8s_dashboard` roles)
-*   A Cloudflare account and API token (required for the `dns_cname` role)
+# Ansible Playbooks for Raspberry Pi and Kubernetes Management
+
+This project uses Ansible to automate the setup and configuration of Raspberry Pi devices and to deploy applications on a Kubernetes cluster. It includes roles for basic Raspberry Pi setup, Kubernetes deployment (including the Kubernetes Dashboard, Docmost, Ghost), DNS CNAME record creation with Cloudflare, and a reboot utility. It also includes the Lix and nix-darwin installers for local configuration.
+
+## Project Structure
+
+The project is organized into several directories:
+
+* `roles/`: Contains Ansible roles for specific tasks.
+* `playbooks/`: Contains Ansible playbooks that define the overall configuration workflow.
+* `inventory/`: Holds the inventory file that defines the target hosts.
+
+### Roles
+
+Each role encapsulates a set of tasks, variables, and handlers to achieve a specific configuration goal.
+
+* **`reboot`**: Reboots the Raspberry Pi.
+    * `tasks/main.yml`: Contains the task to reboot the Raspberry Pi using the `ansible.builtin.reboot` module.
+* **`rpi_setup`**: Configures Raspberry Pi devices for Kubernetes.
+    * `tasks/main.yml`: Imports the necessary tasks.
+    * `tasks/install.yml`: Installs the `open-iscsi` package.
+    * `tasks/services.yml`: Enables and starts the `iscsid` and `iscsi` services.
+    * `tasks/configure.yml`: Configures `/etc/iscsi/iscsid.conf` with settings like `node.startup = automatic`. Includes a handler to restart the iscsi services after configuration changes.
+    * `tasks/cmdline.yml`: Ensures that `cgroup_memory=1 cgroup_enable=memory` is present in `/boot/firmware/cmdline.txt`. This is important for Kubernetes to function properly.
+* **`k8s`**: Deploys applications to a Kubernetes cluster.
+    * `tasks/main.yml`: Imports the necessary tasks.
+    * `tasks/dashboard.yml`: Deploys the Kubernetes Dashboard. It also updates the service type for accessing the dashboard, creates an admin user, and displays access information.
+    * `tasks/docmost.yml`: Deploys Docmost, an open-source knowledge base, to the Kubernetes cluster. Uses a `with_fileglob` loop to deploy all YAML files in the `docmost/` directory.
+    * `tasks/ghost.yml`: Deploys Ghost, a blogging platform, to the Kubernetes cluster. Uses a `with_fileglob` loop to deploy all YAML files in the `ghost/` directory.
+    * `tasks/kubeseal.yml`: Deploys Kubeseal, a tool for encrypting Kubernetes secrets.
+    * `defaults/main.yml`: Defines default values for variables used in the role, such as the Kubernetes Dashboard version, namespace, service type, node port, and manifest URLs.
+    * `files/docmost/`: Contains YAML files for deploying Docmost, including definitions for the `cloudflared` tunnel, `ConfigMap`, `StatefulSet`, `Service`, `Namespace`, `Postgres`, `Redis`, and a `SealedSecret`. An example `secrets.example.yaml` file shows how to define sensitive information that should be sealed.
+    * `files/ghost/`: Contains YAML files for deploying Ghost, including definitions for the `cloudflared` tunnel, `MySQL` database, and Ghost application. Uses a `SealedSecret` for MySQL password encryption.
+    * `templates/dashboard-admin.yml.j2`: Template for creating an admin user for the Kubernetes Dashboard.
+    * `templates/dashboard-service.yml.j2`: Template for updating the Kubernetes Dashboard service type.
+* **`dns_cname`**: Creates a CNAME record in Cloudflare DNS.
+    * `tasks/main.yml`: Creates a CNAME record using `community.general.cloudflare_dns`.
+    * `defaults/main.yml`: Defines default values for the Cloudflare zone, record name, and target.
+    * `vars/main.yml`: Defines a variable to retrieve the Cloudflare API token from an environment variable, falling back to a prompt if not set.
+* **`lix`**: Installs the Lix package manager.
+    * `tasks/main.yml`: Checks if nix is installed and installs it if it's not.
+* **`nix_darwin`**: Runs the nix-darwin rebuild command.
+    * `tasks/main.yml`: Checks if darwin-rebuild is installed and runs it if it's not.
+
+### Playbooks
+
+Playbooks define the order of execution for the roles.
+
+* **`reboot.yml`**: Reboots the Raspberry Pi devices.
+* **`site.yml`**: The main playbook that sets up the nix environment locally and configures the Kubernetes cluster via roles: `lix`, `nix_darwin`, and `k8s`. Includes commented-out sections to configure raspberry pi hosts and setup dns cname.
+
+### Inventory
+
+The inventory file defines the target hosts for the playbooks.
+
+* **`inventory/raspberrypi.yml`**: Defines the Raspberry Pi hosts and their connection details.
 
 ## Usage
 
-1.  **Clone the repository:**
+### Prerequisites
+
+* Ansible installed on your control machine.
+* A Kubernetes cluster is running and accessible from your control machine, or a valid kubeconfig file configured.
+* Raspberry Pi devices with SSH access enabled.
+* Cloudflare account and API token (for the `dns_cname` role).
+* Lix installed on your control machine.
+
+### Configuration
+
+1. **Inventory Setup:**
+    * Modify the `inventory/raspberrypi.yml` file to include the IP addresses or hostnames of your Raspberry Pi devices. Update the `ansible_user` variable with the correct username.
+2. **Variable Configuration:**
+    * For the `k8s` role, customize the variables in `roles/k8s/defaults/main.yml` to match your Kubernetes cluster configuration. Adjust the `k8s_dashboard_service_type` and `k8s_dashboard_node_port` according to your network setup.
+    * For the `dns_cname` role, set the `dns_cname_zone`, `dns_cname_record`, and `dns_cname_target` variables in `roles/dns_cname/defaults/main.yml` to match your domain and target. Set the `CLOUDFLARE_API_TOKEN` environment variable or modify the `roles/dns_cname/vars/main.yml` file.
+3. **Secret Management:**
+    * For Docmost and Ghost deployments, create `SealedSecret` resources in `roles/k8s/files/docmost/sealedsecrets.yaml` and `roles/k8s/files/ghost/mysql-sealedsecret.yaml`. Use `kubeseal` to encrypt secrets and store the encrypted result in the sealed secret files. Use `secrets.example.yaml` in `roles/k8s/files/docmost/` as an example.
+    * Alternatively, encrypt manually using `kubeseal --controller-namespace kube-system --format yaml < secrets.example.yaml > sealed-secrets.yaml`, where `kube-system` is the default namespace for the kubeseal controller.
+
+### Execution
+
+1. **Run the `site.yml` playbook:**
 
     ```bash
-    git clone <repository_url>
-    cd <repository_directory>
+    ansible-playbook playbooks/site.yml -i inventory/raspberrypi.yml -K
     ```
 
-2.  **Install dependencies:**
+    The `-K` option prompts for the SSH password for the Raspberry Pi devices.
+
+2. **Run the `reboot.yml` playbook (optional):**
 
     ```bash
-    ansible-galaxy collection install community.general kubernetes.core
+    ansible-playbook playbooks/reboot.yml -i inventory/raspberrypi.yml -K
     ```
 
-3.  **Configure your inventory file:**
+## Notes
 
-    Create or modify your Ansible inventory file to define the target hosts.  For example:
-
-    ```ini
-    [localhost]
-    127.0.0.1 ansible_connection=local
-
-    [raspberrypi]
-    <raspberry_pi_ip_address> ansible_user=<username> ansible_ssh_private_key_file=~/.ssh/id_rsa
-    ```
-
-4.  **Run the main playbook:**
-
-    ```bash
-    ansible-playbook site.yml
-    ```
-
-    Or, to run a specific playbook:
-
-    ```bash
-    ansible-playbook dns.yml
-    ```
-
-5.  **For `dns.yml`, ensure the `CLOUDFLARE_API_TOKEN` environment variable is set or be prepared to enter it when prompted.**
-
-## Contributing
-
-Contributions are welcome! Please submit pull requests with clear descriptions of the changes.
-
-## License
-
-MIT
+* This project assumes that you have a basic understanding of Ansible, Kubernetes, and Raspberry Pi devices.
+* Ensure that your control machine can SSH into the Raspberry Pi devices.
+* Customize the roles and playbooks to match your specific requirements.
+* The provided YAML files for Docmost and Ghost are examples and might require adjustments based on your environment.
+* For enhanced security, consider using Ansible Vault to encrypt sensitive data.
+* Kubeseal is used to manage Kubernetes secrets securely. Ensure that Kubeseal is properly configured in your cluster before deploying applications that rely on secrets.
+* The cloudflared configurations are set up with placeholder domain names (`docmost.mulliken.net` and `blog.mulliken.net`). You will need to replace these with your actual domain names and configure Cloudflare DNS to point to your cluster's external IP or load balancer.

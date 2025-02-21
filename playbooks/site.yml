@@ -12,11 +12,11 @@
     - nix_darwin
     # - dns_cname
 
-# - name: Setup raspberry pis
-#   hosts: raspberrypi
-#   gather_facts: false
-#   roles:
-#     - rpi_setup
+- name: Setup raspberry pis
+  hosts: raspberrypi
+  gather_facts: false
+  roles:
+    - rpi_setup
 
 - name: Setup k8s (includes dashboard, docmost, and ghost)
   hosts: localhost
