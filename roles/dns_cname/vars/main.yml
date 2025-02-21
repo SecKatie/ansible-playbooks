@@ -1,0 +1,3 @@
+---
+dns_cname_env_token: "{{ lookup('env', 'CLOUDFLARE_API_TOKEN') | default('', true) }}"
+dns_cname_cloudflare_api_token: "{{ dns_cname_env_token if dns_cname_env_token != '' else prompt_token }}"

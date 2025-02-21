@@ -1,0 +1,5 @@
+---
+- import_tasks: dashboard.yml
+- import_tasks: docmost.yml
+- import_tasks: ghost.yml
+- import_tasks: kubeseal.yml

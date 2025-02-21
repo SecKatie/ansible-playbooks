@@ -1,0 +1,21 @@
+---
+- name: Check if nix is installed
+  ansible.builtin.command: which nix
+  register: nix_check
+  failed_when: false
+  changed_when: false
+
+- name: Install nix if not installed
+  when: nix_check.rc != 0
+  block:
+    - name: Download Lix installer script
+      ansible.builtin.get_url:
+        url: https://install.lix.systems/lix
+        dest: /tmp/install-lix.sh
+        mode: '0755'
+
+    - name: Execute Lix installer script
+      ansible.builtin.shell: /tmp/install-lix.sh install --enable-flakes --no-confirm
+      args:
+        executable: /bin/sh
+      changed_when: true  # Installation will always count as a change

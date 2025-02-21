@@ -1,0 +1,9 @@
+all:
+  children:
+    raspberrypi:
+      hosts:
+        super6c-node-1:
+        super6c-node-2:
+        super6c-node-3:
+      vars:
+        ansible_user: kglitchy

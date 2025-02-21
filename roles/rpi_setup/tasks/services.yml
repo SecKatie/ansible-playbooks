@@ -1,0 +1,16 @@
+---
+# Enable and start the iscsid service
+- name: Enable and start iscsid service
+  ansible.builtin.systemd:
+    name: iscsid
+    state: started
+    enabled: yes
+  become: true
+
+# Ensure the iscsi service is enabled and started
+- name: Ensure iscsi service is enabled and started
+  ansible.builtin.systemd:
+    name: iscsi
+    state: started
+    enabled: yes
+  become: true 

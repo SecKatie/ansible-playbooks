@@ -1,0 +1,10 @@
+---
+- name: Create CNAME record
+  community.general.cloudflare_dns:
+    zone: "{{ dns_cname_zone }}"
+    record: "{{ dns_cname_record }}"
+    type: CNAME
+    value: "{{ dns_cname_target }}"
+    api_token: "{{ dns_cname_cloudflare_api_token }}"
+    state: present
+    proxied: true

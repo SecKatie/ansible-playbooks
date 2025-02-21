@@ -1,0 +1,4 @@
+---
+dns_cname_zone: mulliken.net
+dns_cname_record: links
+dns_cname_target: my-link-blog.fly.dev

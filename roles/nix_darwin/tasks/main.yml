@@ -1,0 +1,13 @@
+---
+- name: Check if darwin-rebuild is installed
+  ansible.builtin.command: which darwin-rebuild
+  register: darwin_check
+  failed_when: false
+  changed_when: false
+
+- name: Run nix-darwin switch command
+  ansible.builtin.shell: nix run nix-darwin -- switch --flake ~/.config/nix-darwin
+  args:
+    executable: /bin/sh
+  changed_when: true  # Darwin system changes will count as a change
+  when: darwin_check.rc != 0
