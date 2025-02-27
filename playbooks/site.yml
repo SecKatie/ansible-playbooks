@@ -1,19 +1,8 @@
----
-- name: Setup nix environment
-  hosts: localhost
-  gather_facts: false
+- hosts: all
   roles:
+    - dns_cname
+    - k8s
     - lix
     - nix_darwin
-
-- name: Setup raspberry pis
-  hosts: raspberrypi
-  gather_facts: false
-  roles:
+    - reboot
     - rpi_setup
-
-- name: Setup k8s (includes dashboard, docmost, and ghost)
-  hosts: localhost
-  gather_facts: false
-  roles:
-    - k8s

@@ -1,0 +1,8 @@
+---
+roles:
+  - src: mulliken.default.dns_cname
+  - src: mulliken.default.k8s
+  - src: mulliken.default.lix
+  - src: mulliken.default.nix_darwin
+  - src: mulliken.default.reboot
+  - src: mulliken.default.rpi_setup
