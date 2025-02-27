@@ -92,6 +92,77 @@ The inventory file defines the target hosts for the playbooks.
     ansible-playbook playbooks/reboot.yml -i inventory/raspberrypi.yml -K
     ```
 
+### Molecule Testing
+
+This project uses [Molecule](https://molecule.readthedocs.io/) for testing Ansible roles. Molecule provides a standardized way to test roles in isolation, ensuring they work as expected across different environments.
+
+#### Setup for Testing
+
+1. **Install dependencies:**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   Alternatively, use the provided script to set up a virtual environment and install dependencies:
+
+   ```bash
+   ./molecule-test.sh
+   ```
+
+2. **Run tests for a specific role:**
+
+   ```bash
+   cd roles/rpi_setup
+   molecule test
+   ```
+
+   Or use the script:
+
+   ```bash
+   ./molecule-test.sh rpi_setup
+   ```
+
+3. **Run tests for all roles:**
+
+   ```bash
+   ./molecule-test.sh
+   ```
+
+#### Test Structure
+
+Each role that has Molecule tests includes:
+
+* `molecule/default/molecule.yml`: Main configuration file defining the test environment.
+* `molecule/default/converge.yml`: Playbook that applies the role during testing.
+* `molecule/default/verify.yml`: Playbook that runs tests to verify role functionality.
+
+#### Adding Tests to a New Role
+
+1. Initialize Molecule for a role:
+
+   ```bash
+   cd roles/your_role_name
+   molecule init scenario --role-name your_role_name
+   ```
+
+2. Customize the verification tests in `verify.yml` to test specific aspects of your role.
+
+#### Testing Workflow
+
+Molecule tests follow this sequence:
+
+1. **Lint**: Checks YAML files for syntax and formatting issues.
+2. **Destroy**: Ensures a clean testing environment.
+3. **Dependency**: Installs role dependencies.
+4. **Syntax**: Validates playbook syntax.
+5. **Create**: Sets up the test instance (Docker container).
+6. **Prepare**: Prepares the instance for testing.
+7. **Converge**: Applies the role to the test instance.
+8. **Idempotence**: Verifies that the role can be run multiple times without changes.
+9. **Verify**: Runs tests to check if the role worked as expected.
+10. **Destroy**: Cleans up the test environment.
+
 ## Notes
 
 * This project assumes that you have a basic understanding of Ansible, Kubernetes, and Raspberry Pi devices.

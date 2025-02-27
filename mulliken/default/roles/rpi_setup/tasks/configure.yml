@@ -6,7 +6,8 @@
     regexp: "{{ item.regexp }}"
     line: "{{ item.line }}"
   with_items:
-    - { regexp: '^node.startup =', line: 'node.startup = automatic' }
-    - { regexp: '^node.session.timeo.replacement_timeout =', line: 'node.session.timeo.replacement_timeout = 120' }
+    - {regexp: '^node.startup =', line: 'node.startup = automatic'}
+    - {regexp: '^node.session.timeo.replacement_timeout =',
+       line: 'node.session.timeo.replacement_timeout = 120'}
   become: true
-  notify: restart iscsi services 
+  notify: restart iscsi services

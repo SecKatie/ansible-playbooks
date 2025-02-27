@@ -15,4 +15,5 @@
     line: '\1 cgroup_memory=1 cgroup_enable=memory'
     state: present
   become: true
-  changed_when: "not cmdline.stdout is search('cgroup_memory=1\\s+cgroup_enable=memory$')" 
+  changed_when: >-
+    not cmdline.stdout is search('cgroup_memory=1\\s+cgroup_enable=memory$')

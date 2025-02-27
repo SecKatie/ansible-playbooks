@@ -17,6 +17,13 @@ spec:
       containers:
         - name: docmost
           image: docmost/docmost:latest
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
           ports:
             - containerPort: 3000
               name: http

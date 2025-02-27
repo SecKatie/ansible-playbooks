@@ -4,5 +4,5 @@
   ansible.builtin.apt:
     name: open-iscsi
     state: present
-    update_cache: yes
-  become: true 
+    update_cache: true
+  become: true

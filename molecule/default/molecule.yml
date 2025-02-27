@@ -1,0 +1,38 @@
+---
+dependency:
+  name: galaxy
+  enabled: false
+driver:
+  name: podman
+platforms:
+  - name: instance
+    image: geerlingguy/docker-debian11-ansible:latest
+    pre_build_image: true
+    command: /lib/systemd/systemd
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_REMOTE_TMP: /tmp/ansible-remote
+    ANSIBLE_LOCAL_TMP: /tmp/ansible-local
+    ANSIBLE_COLLECTIONS_PATH: ${MOLECULE_PROJECT_DIRECTORY}
+  options:
+    vvv: true
+  config_options:
+    defaults:
+      collections_path: ${MOLECULE_PROJECT_DIRECTORY}
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - dependency
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

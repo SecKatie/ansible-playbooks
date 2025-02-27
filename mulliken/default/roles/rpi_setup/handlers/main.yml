@@ -1,0 +1,11 @@
+---
+# Handlers for rpi_setup role
+
+- name: restart iscsi services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - iscsid
+    - iscsi
+  become: true 

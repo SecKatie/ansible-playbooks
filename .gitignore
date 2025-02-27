@@ -53,3 +53,4 @@ tmp/
 # Kubernetes
 kubeconfig
 .kube/
+.aider*

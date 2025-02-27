@@ -2,15 +2,9 @@
 - name: Setup nix environment
   hosts: localhost
   gather_facts: false
-  # vars_prompt:
-  # - name: prompt_token
-  #   prompt: "Enter your Cloudflare API token"
-  #   private: true
-  #   default: ""
   roles:
     - lix
     - nix_darwin
-    # - dns_cname
 
 - name: Setup raspberry pis
   hosts: raspberrypi
