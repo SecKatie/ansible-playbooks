@@ -1,8 +1,6 @@
 - hosts: all
   roles:
-    - dns_cname
-    - k8s
     - lix
     - nix_darwin
-    - reboot
     - rpi_setup
+    - k8s
