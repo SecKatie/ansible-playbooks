@@ -4,3 +4,9 @@
     - nix_darwin
     - rpi_setup
     - k8s
+    - role: dns_cname
+      vars:
+        dns_cname_zone: "example.com"
+        dns_cname_record: "test.example.com"
+        dns_cname_target: "target.example.com"
+        prompt_token: "YOUR_CLOUDFLARE_API_TOKEN"
