@@ -1,4 +1,13 @@
 ---
+- name: Validate required variables
+  assert:
+    that:
+      - dns_cname_zone is defined and dns_cname_zone | length > 0
+      - dns_cname_record is defined and dns_cname_record | length > 0
+      - dns_cname_target is defined and dns_cname_target | length > 0
+      - dns_cname_cloudflare_api_token is defined and dns_cname_cloudflare_api_token | length > 0
+    fail_msg: "Required variables are missing or empty."
+
 - name: Create CNAME record
   community.general.cloudflare_dns:
     zone: "{{ dns_cname_zone }}"
