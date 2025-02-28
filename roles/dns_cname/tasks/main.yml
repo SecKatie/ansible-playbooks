@@ -1,6 +1,6 @@
 ---
 - name: Validate required variables
-  assert:
+  ansible.builtin.assert:
     that:
       - dns_cname_zone is defined and dns_cname_zone | length > 0
       - dns_cname_record is defined and dns_cname_record | length > 0
