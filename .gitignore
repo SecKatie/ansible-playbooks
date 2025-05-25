@@ -54,3 +54,7 @@ tmp/
 kubeconfig
 .kube/
 .aider*
+
+# Ansible specific
+ansible.cfg
+collections/

@@ -6,11 +6,3 @@
     state: started
     enabled: true
   become: true
-
-# Ensure the iscsi service is enabled and started
-- name: Ensure iscsi service is enabled and started
-  ansible.builtin.systemd:
-    name: iscsi
-    state: started
-    enabled: true
-  become: true

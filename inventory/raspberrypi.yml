@@ -3,7 +3,10 @@ all:
     raspberrypi:
       hosts:
         super6c-node-1:
+          ansible_host: 172.16.10.246
         super6c-node-2:
+          ansible_host: 172.16.10.40
         super6c-node-3:
+          ansible_host: 172.16.10.150
       vars:
         ansible_user: kglitchy

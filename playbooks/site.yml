@@ -1,11 +1,11 @@
-- hosts: all
+- hosts: raspberrypi
   roles:
-    - lix
-    - nix_darwin
     - rpi_setup
+- hosts: localhost
+  roles:
     - k8s
-    - role: dns_cname
-      vars:
-        dns_cname_zone: "example.com"
-        dns_cname_record: "test.example.com"
-        dns_cname_target: "target.example.com"
+    # - role: dns_cname
+    #   vars:
+    #     dns_cname_zone: "example.com"
+    #     dns_cname_record: "test.example.com"
+    #     dns_cname_target: "target.example.com"

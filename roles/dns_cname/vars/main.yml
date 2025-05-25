@@ -1,4 +1,0 @@
----
-dns_cname_env_token: "{{ lookup('env', 'CLOUDFLARE_API_TOKEN') | default('', true) }}"
-dns_cname_vault_token: "{{ lookup('ansible.builtin.file', 'roles/dns_cname/vars/secrets.yml') | ansible.utils.from_yaml }}"
-dns_cname_cloudflare_api_token: "{{ dns_cname_env_token if dns_cname_env_token != '' else dns_cname_vault_token.cloudflare_api_token }}"
