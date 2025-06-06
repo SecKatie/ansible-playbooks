@@ -1,0 +1,9 @@
+---
+# Kubeseal version to install
+k8s_kubeseal_version: "0.28.0"
+
+# URL to download the kubeseal manifest
+k8s_kubeseal_manifest_url: "https://github.com/bitnami-labs/sealed-secrets/releases/download/v{{ k8s_kubeseal_version }}/controller.yaml"
+
+# Local path where the downloaded manifest will be stored
+k8s_kubeseal_manifest_dest: "/tmp/k8s-kubeseal-{{ k8s_kubeseal_version }}.yaml"

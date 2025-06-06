@@ -1,0 +1,18 @@
+---
+# Version of Kubernetes Dashboard to install
+k8s_dashboard_version: "v2.7.0"
+
+# Namespace where the dashboard will be deployed
+k8s_dashboard_namespace: "kubernetes-dashboard"
+
+# Service type for dashboard access - determines how the dashboard is exposed
+k8s_dashboard_service_type: "NodePort"  # Can be NodePort or LoadBalancer
+
+# Port number for NodePort service type access
+k8s_dashboard_node_port: 30443  # Note: no quotes, should be a number 
+
+# URL to download the dashboard manifest from GitHub
+k8s_dashboard_manifest_url: "https://raw.githubusercontent.com/kubernetes/dashboard/{{ k8s_dashboard_version }}/aio/deploy/recommended.yaml"
+
+# Local path where the downloaded manifest will be stored
+k8s_dashboard_manifest_dest: "/tmp/k8s-dashboard-{{ k8s_dashboard_version }}.yaml"

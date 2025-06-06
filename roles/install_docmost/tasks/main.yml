@@ -1,0 +1,7 @@
+---
+- name: Deploy Docmost Definitions
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "docmost/*.yaml"
