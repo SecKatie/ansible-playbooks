@@ -1,7 +1,7 @@
 ---
-- name: Reboot Raspberry Pi
+- name: Reboot device
   ansible.builtin.reboot:
-    msg: "Rebooting Raspberry Pi"
+    msg: "Rebooting device"
     connect_timeout: 5
     reboot_timeout: 300
     pre_reboot_delay: 0

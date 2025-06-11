@@ -1,5 +1,5 @@
 ---
-- name: Reboot Raspberry Pi devices
-  hosts: raspberrypi
+- name: Reboot devices
+  hosts: servers
   roles:
     - reboot

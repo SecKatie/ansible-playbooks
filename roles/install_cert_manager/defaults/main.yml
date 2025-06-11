@@ -1,0 +1,21 @@
+---
+# cert-manager version to install
+cert_manager_version: "v1.17.2"
+
+# cert-manager manifest URL
+cert_manager_manifest_url: "https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml"
+
+# Local path to store the downloaded manifest
+cert_manager_manifest_dest: "/tmp/cert-manager-{{ cert_manager_version }}.yaml"
+
+# cert-manager namespace
+cert_manager_namespace: "cert-manager"
+
+# Whether to verify the installation
+cert_manager_verify_installation: true
+
+# Whether to run end-to-end verification test
+cert_manager_e2e_test: false
+
+# Timeout for waiting for cert-manager to be ready (seconds)
+cert_manager_wait_timeout: 300 

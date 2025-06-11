@@ -1,174 +1,126 @@
-# Ansible Playbooks for Raspberry Pi and Kubernetes Management
+# Raspberry Pi & Kubernetes Infra Automation (Ansible)
 
-This project uses Ansible to automate the setup and configuration of Raspberry Pi devices and to deploy applications on a Kubernetes cluster. It includes roles for basic Raspberry Pi setup, Kubernetes deployment (including the Kubernetes Dashboard, Docmost, Ghost), DNS CNAME record creation with Cloudflare, and a reboot utility. It also includes the Lix and nix-darwin installers for local configuration.
+Automate the lifecycle of Raspberry Pi clusters and Kubernetes app deployments. Ansible handles provisioning, configuration, application rollout (Docmost, Ghost), and secret management (Kubeseal). The structure is modular and easy to extend.
 
-## Project Structure
+---
 
-The project is organized into several directories:
+## Project Layout
 
-* `roles/`: Contains Ansible roles for specific tasks.
-* `playbooks/`: Contains Ansible playbooks that define the overall configuration workflow.
-* `inventory/`: Holds the inventory file that defines the target hosts.
+```text
+roles/           # Modular Ansible roles (Pi setup, K8s apps, etc.)
+playbooks/       # Main workflows (site bootstrap, reboots, etc.)
+inventory/       # Raspberry Pi host definitions
+requirements.txt # Python dependencies for Ansible/Molecule
+galaxy.yml       # Collection metadata (optional, for Galaxy packaging)
+README.md        # You're reading it
+```
 
-### Roles
+---
 
-Each role encapsulates a set of tasks, variables, and handlers to achieve a specific configuration goal.
+## Quick-Start
 
-* **`reboot`**: Reboots the Raspberry Pi.
-    * `tasks/main.yml`: Contains the task to reboot the Raspberry Pi using the `ansible.builtin.reboot` module.
-* **`rpi_setup`**: Configures Raspberry Pi devices for Kubernetes.
-    * `tasks/main.yml`: Imports the necessary tasks.
-    * `tasks/install.yml`: Installs the `open-iscsi` package.
-    * `tasks/services.yml`: Enables and starts the `iscsid` and `iscsi` services.
-    * `tasks/configure.yml`: Configures `/etc/iscsi/iscsid.conf` with settings like `node.startup = automatic`. Includes a handler to restart the iscsi services after configuration changes.
-    * `tasks/cmdline.yml`: Ensures that `cgroup_memory=1 cgroup_enable=memory` is present in `/boot/firmware/cmdline.txt`. This is important for Kubernetes to function properly.
-* **`k8s`**: Deploys applications to a Kubernetes cluster.
-    * `tasks/main.yml`: Imports the necessary tasks.
-    * `tasks/dashboard.yml`: Deploys the Kubernetes Dashboard. It also updates the service type for accessing the dashboard, creates an admin user, and displays access information.
-    * `tasks/docmost.yml`: Deploys Docmost, an open-source knowledge base, to the Kubernetes cluster. Uses a `with_fileglob` loop to deploy all YAML files in the `docmost/` directory.
-    * `tasks/ghost.yml`: Deploys Ghost, a blogging platform, to the Kubernetes cluster. Uses a `with_fileglob` loop to deploy all YAML files in the `ghost/` directory.
-    * `tasks/kubeseal.yml`: Deploys Kubeseal, a tool for encrypting Kubernetes secrets.
-    * `defaults/main.yml`: Defines default values for variables used in the role, such as the Kubernetes Dashboard version, namespace, service type, node port, and manifest URLs.
-    * `files/docmost/`: Contains YAML files for deploying Docmost, including definitions for the `cloudflared` tunnel, `ConfigMap`, `StatefulSet`, `Service`, `Namespace`, `Postgres`, `Redis`, and a `SealedSecret`. An example `secrets.example.yaml` file shows how to define sensitive information that should be sealed.
-    * `files/ghost/`: Contains YAML files for deploying Ghost, including definitions for the `cloudflared` tunnel, `MySQL` database, and Ghost application. Uses a `SealedSecret` for MySQL password encryption.
-    * `templates/dashboard-admin.yml.j2`: Template for creating an admin user for the Kubernetes Dashboard.
-    * `templates/dashboard-service.yml.j2`: Template for updating the Kubernetes Dashboard service type.
-* **`dns_cname`**: Creates a CNAME record in Cloudflare DNS.
-    * `tasks/main.yml`: Creates a CNAME record using `community.general.cloudflare_dns`.
-    * `defaults/main.yml`: Defines default values for the Cloudflare zone, record name, and target.
-    * `vars/main.yml`: Defines a variable to retrieve the Cloudflare API token from an environment variable, falling back to a prompt if not set.
-* **`lix`**: Installs the Lix package manager.
-    * `tasks/main.yml`: Checks if nix is installed and installs it if it's not.
-* **`nix_darwin`**: Runs the nix-darwin rebuild command.
-    * `tasks/main.yml`: Checks if darwin-rebuild is installed and runs it if it's not.
+### 1. Prerequisites
 
-### Playbooks
+- Ansible (install with `pip install -r requirements.txt`)
+- SSH access to your Pis
+- A valid kubeconfig with admin rights to your cluster
+- Kubeseal installed (for encrypted secrets)
+- Cloudflare API token (optional – only if you want DNS automation)
 
-Playbooks define the order of execution for the roles.
+### 2. Inventory Setup
 
-* **`reboot.yml`**: Reboots the Raspberry Pi devices.
-* **`site.yml`**: The main playbook that sets up the nix environment locally and configures the Kubernetes cluster via roles: `lix`, `nix_darwin`, and `k8s`. Includes commented-out sections to configure raspberry pi hosts and setup dns cname.
+Edit `inventory/raspberrypi.yml`:
 
-### Inventory
+```yaml
+all:
+  children:
+    raspberrypi:
+      hosts:
+        pi1:
+          ansible_host: 192.168.1.10
+        pi2:
+          ansible_host: 192.168.1.11
+      vars:
+        ansible_user: youruser
+```
 
-The inventory file defines the target hosts for the playbooks.
+### 3. Configure Variables
 
-* **`inventory/raspberrypi.yml`**: Defines the Raspberry Pi hosts and their connection details.
+- `roles/k8s/defaults/main.yml` – cluster & app parameters
+- Secret management: All plaintext secrets must be sealed with Kubeseal before deployment.
+
+### 4. Encrypt & Place Secrets
+
+```sh
+kubeseal --format yaml < my-secrets.yaml > sealedsecrets.yaml
+```
+
+Place the output in `roles/k8s/files/<app>/sealedsecrets.yaml`.
+
+---
 
 ## Usage
 
-### Prerequisites
+### Deploy Everything
 
-* Ansible installed on your control machine.
-* A Kubernetes cluster is running and accessible from your control machine, or a valid kubeconfig file configured.
-* Raspberry Pi devices with SSH access enabled.
-* Cloudflare account and API token (for the `dns_cname` role).
-* Lix installed on your control machine.
+```sh
+ansible-playbook playbooks/site.yml -i inventory/raspberrypi.yml -K
+# -K prompts for sudo/SSH password if required
+```
 
-### Configuration
+### Reboot Devices
 
-1. **Inventory Setup:**
-    * Modify the `inventory/raspberrypi.yml` file to include the IP addresses or hostnames of your Raspberry Pi devices. Update the `ansible_user` variable with the correct username.
-2. **Variable Configuration:**
-    * For the `k8s` role, customize the variables in `roles/k8s/defaults/main.yml` to match your Kubernetes cluster configuration. Adjust the `k8s_dashboard_service_type` and `k8s_dashboard_node_port` according to your network setup.
-    * For the `dns_cname` role, set the `dns_cname_zone`, `dns_cname_record`, and `dns_cname_target` variables in `roles/dns_cname/defaults/main.yml` to match your domain and target. Set the `CLOUDFLARE_API_TOKEN` environment variable or modify the `roles/dns_cname/vars/main.yml` file.
-3. **Secret Management:**
-    * For Docmost and Ghost deployments, create `SealedSecret` resources in `roles/k8s/files/docmost/sealedsecrets.yaml` and `roles/k8s/files/ghost/mysql-sealedsecret.yaml`. Use `kubeseal` to encrypt secrets and store the encrypted result in the sealed secret files. Use `secrets.example.yaml` in `roles/k8s/files/docmost/` as an example.
-    * Alternatively, encrypt manually using `kubeseal --controller-namespace kube-system --format yaml < secrets.example.yaml > sealed-secrets.yaml`, where `kube-system` is the default namespace for the kubeseal controller.
+```sh
+ansible-playbook playbooks/reboot.yml -i inventory/raspberrypi.yml -K
+```
 
-### Execution
+---
 
-1. **Run the `site.yml` playbook:**
+## Roles / Playbooks at a Glance
 
-    ```bash
-    ansible-playbook playbooks/site.yml -i inventory/raspberrypi.yml -K
-    ```
+| Role / Playbook | Purpose                                                        |
+|-----------------|----------------------------------------------------------------|
+| rpi_setup       | Installs & configures iSCSI, sets cgroup options, enables services |
+| k8s             | Deploys K8s Dashboard, Docmost, Ghost, Kubeseal                |
+| reboot          | Utility role that reboots Pis                                  |
+| dns_cname       | (optional) Creates Cloudflare CNAMEs via API                   |
+| lix, nix_darwin | (optional) Local Nix tooling/bootstrap                         |
 
-    The `-K` option prompts for the SSH password for the Raspberry Pi devices.
+---
 
-2. **Run the `reboot.yml` playbook (optional):**
+## App Deployments
 
-    ```bash
-    ansible-playbook playbooks/reboot.yml -i inventory/raspberrypi.yml -K
-    ```
+| App           | Stack Components                                 | Notes                |
+|---------------|--------------------------------------------------|----------------------|
+| Docmost       | StatefulSet, Postgres, Redis, Cloudflared tunnel | Knowledge-base       |
+| Ghost         | StatefulSet, MySQL, Cloudflared, sealed secrets  | Blogging CMS         |
+| K8s Dashboard | Web UI exposed via NodePort or LB                | Admin token auto-created |
 
-### Molecule Testing
+All manifests live in `roles/k8s/files/<app>/`.  
+Update domain names and secret values for your environment.
 
-This project uses [Molecule](https://molecule.readthedocs.io/) for testing Ansible roles. Molecule provides a standardized way to test roles in isolation, ensuring they work as expected across different environments.
+---
 
-#### Setup for Testing
+## Security Checklist
 
-1. **Install dependencies:**
+- Never commit plaintext secrets – always use Kubeseal.
+- Replace placeholder domains (`*.mulliken.net`) with your own.
+- Use SSH keys wherever possible (password auth only as fallback).
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-   Alternatively, use the provided script to set up a virtual environment and install dependencies:
+## Extending the Stack
 
-   ```bash
-   ./molecule-test.sh
-   ```
+1. Add a new role under `roles/` and reference it in the relevant playbook.
+2. Use variables and templates for environment-specific tweaks.
+3. (Optional) Add Molecule tests for CI-ready validation.
 
-2. **Run tests for a specific role:**
+---
 
-   ```bash
-   cd roles/rpi_setup
-   molecule test
-   ```
+## License
 
-   Or use the script:
+GPL-2.0-or-later – see `galaxy.yml` for full details.
 
-   ```bash
-   ./molecule-test.sh rpi_setup
-   ```
+---
 
-3. **Run tests for all roles:**
-
-   ```bash
-   ./molecule-test.sh
-   ```
-
-#### Test Structure
-
-Each role that has Molecule tests includes:
-
-* `molecule/default/molecule.yml`: Main configuration file defining the test environment.
-* `molecule/default/converge.yml`: Playbook that applies the role during testing.
-* `molecule/default/verify.yml`: Playbook that runs tests to verify role functionality.
-
-#### Adding Tests to a New Role
-
-1. Initialize Molecule for a role:
-
-   ```bash
-   cd roles/your_role_name
-   molecule init scenario --role-name your_role_name
-   ```
-
-2. Customize the verification tests in `verify.yml` to test specific aspects of your role.
-
-#### Testing Workflow
-
-Molecule tests follow this sequence:
-
-1. **Lint**: Checks YAML files for syntax and formatting issues.
-2. **Destroy**: Ensures a clean testing environment.
-3. **Dependency**: Installs role dependencies.
-4. **Syntax**: Validates playbook syntax.
-5. **Create**: Sets up the test instance (Docker container).
-6. **Prepare**: Prepares the instance for testing.
-7. **Converge**: Applies the role to the test instance.
-8. **Idempotence**: Verifies that the role can be run multiple times without changes.
-9. **Verify**: Runs tests to check if the role worked as expected.
-10. **Destroy**: Cleans up the test environment.
-
-## Notes
-
-* This project assumes that you have a basic understanding of Ansible, Kubernetes, and Raspberry Pi devices.
-* Ensure that your control machine can SSH into the Raspberry Pi devices.
-* Customize the roles and playbooks to match your specific requirements.
-* The provided YAML files for Docmost and Ghost are examples and might require adjustments based on your environment.
-* For enhanced security, consider using Ansible Vault to encrypt sensitive data.
-* Kubeseal is used to manage Kubernetes secrets securely. Ensure that Kubeseal is properly configured in your cluster before deploying applications that rely on secrets.
-* The cloudflared configurations are set up with placeholder domain names (`docmost.mulliken.net` and `blog.mulliken.net`). You will need to replace these with your actual domain names and configure Cloudflare DNS to point to your cluster's external IP or load balancer.
+Built for pragmatic, security-minded automation of ARM clusters and K8s workloads. PRs to improve, modernize, or harden are welcome.

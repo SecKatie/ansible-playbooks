@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: ghost
+  labels:
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: ghost-mysql
+    app.kubernetes.io/part-of: blog
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: ansible
+  annotations:
+    app.kubernetes.io/description: "MySQL database for Ghost CMS"
+spec:
+  serviceName: mysql
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: ghost-mysql
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+        app.kubernetes.io/instance: ghost-mysql
+        app.kubernetes.io/part-of: blog
+        app.kubernetes.io/component: database
+        app.kubernetes.io/managed-by: ansible
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        ports:
+        - containerPort: 3306
+          name: mysql
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ghost-mysql
+              key: password
+        - name: MYSQL_DATABASE
+          value: ghost
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        readinessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - "mysql -u root -p${MYSQL_ROOT_PASSWORD} -e 'SELECT 1'"
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - bash
+            - -c
+            - "mysqladmin ping -u root -p${MYSQL_ROOT_PASSWORD}"
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 10Gi 

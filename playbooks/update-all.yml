@@ -1,0 +1,177 @@
+---
+- name: Update all packages on all systems
+  hosts: all
+  become: yes
+  gather_facts: yes
+  serial: "{{ update_serial | default('100%') }}"
+  
+  vars:
+    # Update configuration
+    auto_reboot: false
+    reboot_delay: 30
+    # Notification configuration
+    ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
+    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    
+  pre_tasks:
+    - name: Display system information
+      debug:
+        msg: |
+          Updating packages on {{ inventory_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          Package Manager: {{ ansible_pkg_mgr }}
+
+    - name: Send update start notification
+      ansible.builtin.uri:
+        url: "https://ntfy.sh/{{ ntfy_topic }}"
+        method: POST
+        body: "Starting package updates on {{ inventory_hostname }}"
+        headers:
+          Content-Type: "text/plain"
+          Title: "Update Started"
+          Priority: "low"
+          Tags: "package,arrow_up"
+          Authorization: "{{ ntfy_auth }}"
+        status_code: 200
+        timeout: 30
+      delegate_to: localhost
+      become: no
+      when: ntfy_notify_start | default(false)
+
+  tasks:
+    - block:
+        - name: Run system update
+          include_role:
+            name: system_update
+
+        - name: Display completion message
+          debug:
+            msg: "Package update completed on {{ inventory_hostname }}"
+            
+        - name: Reboot notification
+          debug:
+            msg: |
+              ⚠️  ATTENTION: {{ inventory_hostname }} requires a reboot to complete the update.
+              You can reboot manually or run the reboot playbook: ansible-playbook playbooks/reboot.yml
+          when: reboot_required is defined and reboot_required|bool
+
+        - name: Send successful update notification
+          ansible.builtin.uri:
+            url: "https://ntfy.sh/{{ ntfy_topic }}"
+            method: POST
+            body: |
+              ✅ Package update completed successfully!
+              
+              Server: {{ inventory_hostname }}
+              OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+              Time: {{ ansible_date_time.iso8601 }}
+              {% if reboot_required is defined and reboot_required|bool %}
+              
+              ⚠️ Reboot required to complete updates
+              {% endif %}
+            headers:
+              Content-Type: "text/plain"
+              Title: "Update Complete"
+              Priority: "{{ 'high' if (reboot_required is defined and reboot_required|bool) else 'default' }}"
+              Tags: "{{ 'white_check_mark,package,warning' if (reboot_required is defined and reboot_required|bool) else 'white_check_mark,package' }}"
+              Authorization: "{{ ntfy_auth }}"
+            status_code: 200
+            timeout: 30
+          delegate_to: localhost
+          become: no
+
+        - name: Send reboot required notification
+          ansible.builtin.uri:
+            url: "https://ntfy.sh/{{ ntfy_topic }}"
+            method: POST
+            body: |
+              🔄 Reboot Required
+              
+              Server: {{ inventory_hostname }} has completed updates but requires a reboot.
+              
+              To reboot: ansible-playbook playbooks/reboot.yml -l {{ inventory_hostname }}
+            headers:
+              Content-Type: "text/plain"
+              Title: "Reboot Required"
+              Priority: "high"
+              Tags: "warning,arrows_counterclockwise"
+              Actions: "view, Reboot Guide, https://docs.ansible.com/ansible/latest/collections/ansible/builtin/reboot_module.html"
+              Authorization: "{{ ntfy_auth }}"
+            status_code: 200
+            timeout: 30
+          delegate_to: localhost
+          become: no
+          when: 
+            - reboot_required is defined and reboot_required|bool
+            - ntfy_notify_reboot | default(true)
+
+      rescue:
+        - name: Send update failure notification
+          ansible.builtin.uri:
+            url: "https://ntfy.sh/{{ ntfy_topic }}"
+            method: POST
+            body: |
+              ❌ Package update failed!
+              
+              Server: {{ inventory_hostname }}
+              Error: Update process encountered an error
+              
+              Please check the logs and retry.
+            headers:
+              Content-Type: "text/plain"
+              Title: "Update Failed"
+              Priority: "urgent"
+              Tags: "x,package,rotating_light"
+              Authorization: "{{ ntfy_auth }}"
+            status_code: 200
+            timeout: 30
+          delegate_to: localhost
+          become: no
+          ignore_errors: true
+
+        - name: Re-raise the failure
+          fail:
+            msg: "Update failed on {{ inventory_hostname }}"
+
+  handlers:
+    - name: reboot system
+      reboot:
+        reboot_timeout: 600
+        connect_timeout: 20
+        test_command: uptime
+      when: auto_reboot|bool and (reboot_required is defined and reboot_required|bool)
+
+# Summary notification play (runs after all hosts are processed)
+- name: Send update summary notification
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
+    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+  
+  tasks:
+    - name: Send update summary
+      include_role:
+        name: ntfy_notify
+      vars:
+        ntfy_message: |
+          📊 Update Summary Report
+          
+          Total servers: {{ groups['all'] | length }}
+          Completed: {{ ansible_play_hosts_all | default([]) | length }}
+          Time: {{ ansible_date_time.iso8601 }}
+          
+          {% if hostvars | dict2items | selectattr('value.reboot_required', 'defined') | selectattr('value.reboot_required') | list | length > 0 %}
+          Servers requiring reboot:
+          {% for host in groups['all'] %}
+          {% if hostvars[host].reboot_required is defined and hostvars[host].reboot_required %}
+          - {{ host }}
+          {% endif %}
+          {% endfor %}
+          {% endif %}
+        ntfy_title: "Update Summary"
+        ntfy_priority: "default"
+        ntfy_tags: "clipboard,white_check_mark"
+      when: ntfy_summary | default(true) 

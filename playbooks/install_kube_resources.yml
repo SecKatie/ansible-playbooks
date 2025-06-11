@@ -1,0 +1,11 @@
+---
+- name: Install Kubernetes resources
+  hosts: localhost
+  roles:
+    - install_kubeseal
+    - install_cert_manager
+    - install_k8s_dashboard
+    # - install_cf_operator
+    - install_ghost
+    - install_docmost
+    - install_jellyfin

@@ -1,0 +1,12 @@
+---
+- name: Deploy Cloudflare Operator using Kustomize
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('kubernetes.core.kustomize', dir=role_path + '/files') }}"
+  register: deploy_result
+
+- name: Wait for Cloudflare Operator deployment to be ready
+  ansible.builtin.shell: |
+    kubectl wait --for=condition=ready pod -l control-plane=controller-manager --namespace {{ cloudflare_operator_namespace }} --timeout=600s
+  register: wait_result
+  changed_when: false

@@ -1,5 +1,8 @@
 ---
-- import_tasks: dashboard.yml
-- import_tasks: docmost.yml
-- import_tasks: ghost.yml
-- import_tasks: kubeseal.yml
+# This role has been split into separate application-specific roles:
+# - install_k8s_dashboard: For Kubernetes Dashboard
+# - install_kubeseal: For Sealed Secrets
+# - install_ghost: For Ghost blogging platform  
+# - install_docmost: For Docmost documentation platform
+#
+# Use the individual roles instead of this one
