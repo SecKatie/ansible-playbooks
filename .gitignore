@@ -1,4 +1,4 @@
-# Ansible specific
+THIS SHOULD BE A LINTER ERROR# Ansible specific
 *.retry
 ansible.cfg
 inventory.ini
