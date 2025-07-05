@@ -1,6 +1,5 @@
-THIS SHOULD BE A LINTER ERROR# Ansible specific
+# Ansible specific
 *.retry
-ansible.cfg
 inventory.ini
 vault.yml
 vault.yaml
@@ -56,5 +55,4 @@ kubeconfig
 .aider*
 
 # Ansible specific
-ansible.cfg
 collections/

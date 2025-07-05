@@ -1,3 +1,6 @@
-ansible-core
-ansible-lint
-kubernetes
+# Ansible & tooling
+ansible-core>=2.15,<2.17
+ansible-lint~=6.20
+
+# Python Kubernetes client
+kubernetes~=26.1
