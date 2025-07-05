@@ -6,7 +6,7 @@
   
   vars:
     ntfy_topic: "ee4ccfad-efdb-4862-8f38-d7455bcbd198"
-    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    ntfy_auth: "{{ lookup('env', 'NTFY_AUTH') | default('') }}"
   
   tasks:
     - name: Send basic notification

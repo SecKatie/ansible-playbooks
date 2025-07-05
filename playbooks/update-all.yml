@@ -11,7 +11,7 @@
     reboot_delay: 30
     # Notification configuration
     ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
-    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    ntfy_auth: "{{ lookup('env', 'NTFY_AUTH') | default('') }}"
     
   pre_tasks:
     - name: Display system information
@@ -149,7 +149,7 @@
   gather_facts: false
   vars:
     ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
-    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    ntfy_auth: "{{ lookup('env', 'NTFY_AUTH') | default('') }}"
   
   tasks:
     - name: Send update summary

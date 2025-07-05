@@ -12,7 +12,7 @@ ntfy_priority: "default"  # Can be: min, low, default, high, urgent
 ntfy_markdown: false
 
 # Authentication (optional)
-# ntfy_auth: "Basic <username:password base64 encoded>"
+ntfy_auth: "{{ lookup('env', 'NTFY_AUTH') | default('') }}"
 # or
 # ntfy_auth: "Bearer <access_token>"
 
