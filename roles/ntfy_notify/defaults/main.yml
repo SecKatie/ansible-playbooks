@@ -2,6 +2,9 @@
 # Default ntfy server (using the public ntfy.sh service)
 ntfy_server: "https://ntfy.sh"
 
+# Expected HTTP status code from ntfy server (normally 200)
+ntfy_expected_status: 200
+
 # Default behavior settings
 ntfy_debug: false
 ntfy_fail_on_error: true
