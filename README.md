@@ -47,7 +47,7 @@ all:
 `inventory/group_vars/raspberrypi.yml`
 
 ```yaml
-ansible_user: youruser
+ansible_user: kglitchy
 ```
 
 ### 3. Configure Variables
