@@ -11,7 +11,7 @@
     reboot_delay: 30
     # Notification configuration
     ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
-    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    ntfy_auth: "{{ ntfy_update_auth | default(omit) }}"
     
   pre_tasks:
     - name: Display system information
@@ -23,20 +23,14 @@
           Package Manager: {{ ansible_pkg_mgr }}
 
     - name: Send update start notification
-      ansible.builtin.uri:
-        url: "https://ntfy.sh/{{ ntfy_topic }}"
-        method: POST
-        body: "Starting package updates on {{ inventory_hostname }}"
-        headers:
-          Content-Type: "text/plain"
-          Title: "Update Started"
-          Priority: "low"
-          Tags: "package,arrow_up"
-          Authorization: "{{ ntfy_auth }}"
-        status_code: 200
-        timeout: 30
+      include_role:
+        name: ntfy_notify
+      vars:
+        ntfy_message: "Starting package updates on {{ inventory_hostname }}"
+        ntfy_title: "Update Started"
+        ntfy_priority: "low"
+        ntfy_tags: "package,arrow_up"
       delegate_to: localhost
-      become: no
       when: ntfy_notify_start | default(false)
 
   tasks:
@@ -57,10 +51,10 @@
           when: reboot_required is defined and reboot_required|bool
 
         - name: Send successful update notification
-          ansible.builtin.uri:
-            url: "https://ntfy.sh/{{ ntfy_topic }}"
-            method: POST
-            body: |
+          include_role:
+            name: ntfy_notify
+          vars:
+            ntfy_message: |
               ✅ Package update completed successfully!
               
               Server: {{ inventory_hostname }}
@@ -70,64 +64,46 @@
               
               ⚠️ Reboot required to complete updates
               {% endif %}
-            headers:
-              Content-Type: "text/plain"
-              Title: "Update Complete"
-              Priority: "{{ 'high' if (reboot_required is defined and reboot_required|bool) else 'default' }}"
-              Tags: "{{ 'white_check_mark,package,warning' if (reboot_required is defined and reboot_required|bool) else 'white_check_mark,package' }}"
-              Authorization: "{{ ntfy_auth }}"
-            status_code: 200
-            timeout: 30
+            ntfy_title: "Update Complete"
+            ntfy_priority: "{{ 'high' if (reboot_required is defined and reboot_required|bool) else 'default' }}"
+            ntfy_tags: "{{ 'white_check_mark,package,warning' if (reboot_required is defined and reboot_required|bool) else 'white_check_mark,package' }}"
           delegate_to: localhost
-          become: no
 
         - name: Send reboot required notification
-          ansible.builtin.uri:
-            url: "https://ntfy.sh/{{ ntfy_topic }}"
-            method: POST
-            body: |
+          include_role:
+            name: ntfy_notify
+          vars:
+            ntfy_message: |
               🔄 Reboot Required
               
               Server: {{ inventory_hostname }} has completed updates but requires a reboot.
               
               To reboot: ansible-playbook playbooks/reboot.yml -l {{ inventory_hostname }}
-            headers:
-              Content-Type: "text/plain"
-              Title: "Reboot Required"
-              Priority: "high"
-              Tags: "warning,arrows_counterclockwise"
-              Actions: "view, Reboot Guide, https://docs.ansible.com/ansible/latest/collections/ansible/builtin/reboot_module.html"
-              Authorization: "{{ ntfy_auth }}"
-            status_code: 200
-            timeout: 30
+            ntfy_title: "Reboot Required"
+            ntfy_priority: "high"
+            ntfy_tags: "warning,arrows_counterclockwise"
+            ntfy_actions: "view, Reboot Guide, https://docs.ansible.com/ansible/latest/collections/ansible/builtin/reboot_module.html"
           delegate_to: localhost
-          become: no
           when: 
             - reboot_required is defined and reboot_required|bool
             - ntfy_notify_reboot | default(true)
 
       rescue:
         - name: Send update failure notification
-          ansible.builtin.uri:
-            url: "https://ntfy.sh/{{ ntfy_topic }}"
-            method: POST
-            body: |
+          include_role:
+            name: ntfy_notify
+          vars:
+            ntfy_message: |
               ❌ Package update failed!
               
               Server: {{ inventory_hostname }}
               Error: Update process encountered an error
               
               Please check the logs and retry.
-            headers:
-              Content-Type: "text/plain"
-              Title: "Update Failed"
-              Priority: "urgent"
-              Tags: "x,package,rotating_light"
-              Authorization: "{{ ntfy_auth }}"
-            status_code: 200
-            timeout: 30
+            ntfy_title: "Update Failed"
+            ntfy_priority: "urgent"
+            ntfy_tags: "x,package,rotating_light"
           delegate_to: localhost
-          become: no
           ignore_errors: true
 
         - name: Re-raise the failure
@@ -146,10 +122,10 @@
 - name: Send update summary notification
   hosts: localhost
   connection: local
-  gather_facts: false
+  gather_facts: true
   vars:
     ntfy_topic: "{{ ntfy_update_topic | default('ee4ccfad-efdb-4862-8f38-d7455bcbd198') }}"
-    ntfy_auth: "Bearer tk_rgjsutd3db9w5ewqqcbmevhay25ri"
+    ntfy_auth: "{{ ntfy_update_auth | default(omit) }}"
   
   tasks:
     - name: Send update summary
