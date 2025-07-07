@@ -9,7 +9,7 @@ Automate the lifecycle of Raspberry Pi clusters and Kubernetes app deployments. 
 ```text
 roles/           # Modular Ansible roles (Pi setup, K8s apps, etc.)
 playbooks/       # Main workflows (site bootstrap, reboots, etc.)
-inventory/       # Raspberry Pi host definitions
+inventory/       # Inventory folder (hosts.yml + group_vars/)
 requirements.txt # Python dependencies for Ansible/Molecule
 galaxy.yml       # Collection metadata (optional, for Galaxy packaging)
 README.md        # You're reading it
@@ -29,7 +29,9 @@ README.md        # You're reading it
 
 ### 2. Inventory Setup
 
-Edit `inventory/raspberrypi.yml`:
+Edit `inventory/hosts.yml` **and** the matching group-vars file `inventory/group_vars/raspberrypi.yml`:
+
+`inventory/hosts.yml`
 
 ```yaml
 all:
@@ -40,8 +42,12 @@ all:
           ansible_host: 192.168.1.10
         pi2:
           ansible_host: 192.168.1.11
-      vars:
-        ansible_user: youruser
+```
+
+`inventory/group_vars/raspberrypi.yml`
+
+```yaml
+ansible_user: kglitchy
 ```
 
 ### 3. Configure Variables
@@ -64,14 +70,14 @@ Place the output in `roles/k8s/files/<app>/sealedsecrets.yaml`.
 ### Deploy Everything
 
 ```sh
-ansible-playbook playbooks/site.yml -i inventory/raspberrypi.yml -K
+ansible-playbook -i inventory playbooks/site.yml -K
 # -K prompts for sudo/SSH password if required
 ```
 
 ### Reboot Devices
 
 ```sh
-ansible-playbook playbooks/reboot.yml -i inventory/raspberrypi.yml -K
+ansible-playbook -i inventory playbooks/reboot.yml -K
 ```
 
 ---
