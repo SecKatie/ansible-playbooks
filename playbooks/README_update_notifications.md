@@ -1,6 +1,6 @@
-# Update-All Playbook with Ntfy Notifications
+# Update Packages Playbook with Ntfy Notifications
 
-The `update-all.yml` playbook has been enhanced with comprehensive ntfy notification support to keep you informed about system updates in real-time.
+The `update_packages.yml` playbook has been enhanced with comprehensive ntfy notification support to keep you informed about system updates in real-time.
 
 ## 🔔 Notification Features
 
@@ -39,12 +39,12 @@ The `update-all.yml` playbook has been enhanced with comprehensive ntfy notifica
 
 ### Basic Usage (Default Notifications)
 ```bash
-ansible-playbook playbooks/update-all.yml
+ansible-playbook playbooks/update_packages.yml
 ```
 
 ### Customized Notifications
 ```bash
-ansible-playbook playbooks/update-all.yml \
+ansible-playbook playbooks/update_packages.yml \
   -e ntfy_update_topic="my_server_alerts" \
   -e ntfy_notify_start=true \
   -e ntfy_summary=true
@@ -52,7 +52,7 @@ ansible-playbook playbooks/update-all.yml \
 
 ### Disable Notifications
 ```bash
-ansible-playbook playbooks/update-all.yml \
+ansible-playbook playbooks/update_packages.yml \
   -e ntfy_summary=false \
   -e ntfy_notify_reboot=false
 ```
@@ -97,16 +97,16 @@ ansible-playbook playbooks/update-all.yml \
 ansible-playbook playbooks/test_ntfy.yml
 
 # Then run a small update test
-ansible-playbook playbooks/update-all.yml -l localhost
+ansible-playbook playbooks/update_packages.yml -l localhost
 ```
 
 ### 3. Production Use
 ```bash
 # Update all servers with notifications
-ansible-playbook playbooks/update-all.yml
+ansible-playbook playbooks/update_packages.yml
 
 # Update specific group
-ansible-playbook playbooks/update-all.yml -l raspberrypi
+ansible-playbook playbooks/update_packages.yml -l raspberrypi
 ```
 
 ## 🎯 Example Notifications
@@ -177,4 +177,4 @@ The notification system can be easily adapted for other playbooks:
 To use your own ntfy server, set in group_vars or host_vars:
 ```yaml
 ntfy_server: "https://ntfy.yourdomain.com"
-``` 
+```
