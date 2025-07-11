@@ -1,6 +1,8 @@
 ---
 - name: Converge
-  hosts: all
+  hosts: localhost
+  connection: local
   become: false
   roles:
     - role: install_cf_operator
+      tags: external
