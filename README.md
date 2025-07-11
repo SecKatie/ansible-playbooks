@@ -12,6 +12,7 @@ playbooks/       # Main workflows (site bootstrap, reboots, etc.)
 inventory/       # Inventory folder (hosts.yml + group_vars/)
 requirements.txt # Python dependencies for Ansible/Molecule
 galaxy.yml       # Collection metadata (optional, for Galaxy packaging)
+MOLECULE_TESTING.md # Molecule testing documentation
 README.md        # You're reading it
 ```
 
@@ -115,11 +116,26 @@ Update domain names and secret values for your environment.
 
 ---
 
+## Testing
+
+This project includes comprehensive Molecule testing for all roles. To run tests:
+
+```bash
+# Test a single role
+cd roles/system_update
+molecule test
+
+# Test all roles
+for role in roles/*/; do (cd "$role" && molecule test); done
+```
+
+See `MOLECULE_TESTING.md` for detailed testing documentation.
+
 ## Extending the Stack
 
 1. Add a new role under `roles/` and reference it in the relevant playbook.
 2. Use variables and templates for environment-specific tweaks.
-3. (Optional) Add Molecule tests for CI-ready validation.
+3. Add Molecule tests for validation (templates available in existing roles).
 
 ---
 
