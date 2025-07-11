@@ -169,10 +169,10 @@ The notification system can be easily adapted for other playbooks:
 1. Check Ansible logs for HTTP errors
 2. Verify ntfy.sh service status
 3. Test with `playbooks/testing-notification-system.yml`
-4. Test manual curl command:
-   ```bash
-   curl -d "Test message" ntfy.sh/server_updates
-   ```
+   3.1. Test manual curl command:
+      ```bash
+      curl -d "Test message" ntfy.sh/server_updates
+      ```
 
 ### Custom Server
 To use your own ntfy server, set in group_vars or host_vars:
