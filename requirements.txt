@@ -1,3 +1,6 @@
 ansible-core
 ansible-lint
 kubernetes
+molecule[docker]
+molecule-plugins[docker]
+docker
