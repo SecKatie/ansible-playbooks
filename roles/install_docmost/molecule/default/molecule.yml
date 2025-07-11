@@ -1,0 +1,18 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: instance
+    image: geerlingguy/docker-ubuntu2204-ansible:latest
+    privileged: true
+    command: /sbin/init
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+verifier:
+  name: ansible
+  playbooks:
+    verify: verify.yml

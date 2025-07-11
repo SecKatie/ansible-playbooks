@@ -1,3 +1,9 @@
 ansible-core
 ansible-lint
 kubernetes
+
+# Molecule & testing
+molecule[docker]
+docker
+pytest
+pytest-testinfra
