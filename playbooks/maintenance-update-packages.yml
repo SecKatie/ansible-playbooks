@@ -47,7 +47,7 @@
           debug:
             msg: |
               ⚠️  ATTENTION: {{ inventory_hostname }} requires a reboot to complete the update.
-              You can reboot manually or run the reboot playbook: ansible-playbook playbooks/reboot.yml
+              You can reboot manually or run the reboot playbook: ansible-playbook playbooks/maintenance-reboot-systems.yml
           when: reboot_required is defined and reboot_required|bool
 
         - name: Send successful update notification
@@ -78,7 +78,7 @@
               
               Server: {{ inventory_hostname }} has completed updates but requires a reboot.
               
-              To reboot: ansible-playbook playbooks/reboot.yml -l {{ inventory_hostname }}
+              To reboot: ansible-playbook playbooks/maintenance-reboot-systems.yml -l {{ inventory_hostname }}
             ntfy_title: "Reboot Required"
             ntfy_priority: "high"
             ntfy_tags: "warning,arrows_counterclockwise"
