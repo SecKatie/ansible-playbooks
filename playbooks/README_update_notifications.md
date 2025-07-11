@@ -1,6 +1,6 @@
-# Update-All Playbook with Ntfy Notifications
+# Update Packages Playbook with Ntfy Notifications
 
-The `update-all.yml` playbook has been enhanced with comprehensive ntfy notification support to keep you informed about system updates in real-time.
+The `maintenance-update-packages.yml` playbook has been enhanced with comprehensive ntfy notification support to keep you informed about system updates in real-time.
 
 ## 🔔 Notification Features
 
@@ -39,12 +39,12 @@ The `update-all.yml` playbook has been enhanced with comprehensive ntfy notifica
 
 ### Basic Usage (Default Notifications)
 ```bash
-ansible-playbook playbooks/update-all.yml
+ansible-playbook playbooks/maintenance-update-packages.yml
 ```
 
 ### Customized Notifications
 ```bash
-ansible-playbook playbooks/update-all.yml \
+ansible-playbook playbooks/maintenance-update-packages.yml \
   -e ntfy_update_topic="my_server_alerts" \
   -e ntfy_notify_start=true \
   -e ntfy_summary=true
@@ -52,7 +52,7 @@ ansible-playbook playbooks/update-all.yml \
 
 ### Disable Notifications
 ```bash
-ansible-playbook playbooks/update-all.yml \
+ansible-playbook playbooks/maintenance-update-packages.yml \
   -e ntfy_summary=false \
   -e ntfy_notify_reboot=false
 ```
@@ -94,19 +94,19 @@ ansible-playbook playbooks/update-all.yml \
 ### 2. Test Notifications
 ```bash
 # Test the ntfy role first
-ansible-playbook playbooks/test_ntfy.yml
+ansible-playbook playbooks/testing-notification-system.yml
 
 # Then run a small update test
-ansible-playbook playbooks/update-all.yml -l localhost
+ansible-playbook playbooks/maintenance-update-packages.yml -l localhost
 ```
 
 ### 3. Production Use
 ```bash
 # Update all servers with notifications
-ansible-playbook playbooks/update-all.yml
+ansible-playbook playbooks/maintenance-update-packages.yml
 
 # Update specific group
-ansible-playbook playbooks/update-all.yml -l raspberrypi
+ansible-playbook playbooks/maintenance-update-packages.yml -l raspberrypi
 ```
 
 ## 🎯 Example Notifications
@@ -126,7 +126,7 @@ Time: 2024-01-15T14:30:00Z
 
 Server: super6c-node-1 has completed updates but requires a reboot.
 
-To reboot: ansible-playbook playbooks/reboot.yml -l super6c-node-1
+To reboot: ansible-playbook playbooks/maintenance-reboot-systems.yml -l super6c-node-1
 ```
 
 ### Update Summary
@@ -163,12 +163,13 @@ The notification system can be easily adapted for other playbooks:
 ### No Notifications Received
 1. Check ntfy topic subscription
 2. Verify internet connectivity
-3. Test with `playbooks/test_ntfy.yml`
+3. Test with `playbooks/testing-notification-system.yml`
 
 ### Notification Errors
 1. Check Ansible logs for HTTP errors
 2. Verify ntfy.sh service status
-3. Test manual curl command:
+3. Test with `playbooks/testing-notification-system.yml`
+4. Test manual curl command:
    ```bash
    curl -d "Test message" ntfy.sh/server_updates
    ```
