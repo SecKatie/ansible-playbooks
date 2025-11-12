@@ -5,6 +5,7 @@ inventory.ini
 vault.yml
 vault.yaml
 *.vault
+.ansible/
 
 # Python
 __pycache__/
