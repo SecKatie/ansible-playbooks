@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
       - name: ghost
-        image: ghost:5-alpine
+        image: ghost:6-alpine
         ports:
         - containerPort: 2368
           name: ghost

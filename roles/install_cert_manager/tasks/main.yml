@@ -1,29 +1,29 @@
 ---
 - name: Download cert-manager manifest
   ansible.builtin.get_url:
-    url: "{{ cert_manager_manifest_url }}"
-    dest: "{{ cert_manager_manifest_dest }}"
+    url: "{{ install_cert_manager_manifest_url }}"
+    dest: "{{ install_cert_manager_manifest_dest }}"
     mode: '0644'
-  register: download_result
-  until: download_result is succeeded
+  register: install_cert_manager_download_result
+  until: install_cert_manager_download_result is succeeded
   retries: 3
   delay: 5
-  changed_when: download_result.changed
+  changed_when: install_cert_manager_download_result.changed
 
 - name: Deploy cert-manager
   kubernetes.core.k8s:
     state: present
-    src: "{{ cert_manager_manifest_dest }}"
-  register: deploy_result
-  changed_when: deploy_result.changed
+    src: "{{ install_cert_manager_manifest_dest }}"
+  register: install_cert_manager_deploy_result
+  changed_when: install_cert_manager_deploy_result.changed
 
 - name: Wait for cert-manager namespace to be created
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Namespace
-    name: "{{ cert_manager_namespace }}"
-  register: namespace_info
-  until: namespace_info.resources | length > 0
+    name: "{{ install_cert_manager_namespace }}"
+  register: install_cert_manager_namespace_info
+  until: install_cert_manager_namespace_info.resources | length > 0
   retries: 30
   delay: 5
 
@@ -31,39 +31,40 @@
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Pod
-    namespace: "{{ cert_manager_namespace }}"
+    namespace: "{{ install_cert_manager_namespace }}"
     label_selectors:
       - "app.kubernetes.io/instance=cert-manager"
-  register: pod_info
+  register: install_cert_manager_pod_info
   until: >
-    pod_info.resources | length >= 3 and
-    pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == (pod_info.resources | length)
-  retries: "{{ (cert_manager_wait_timeout / 10) | int }}"
+    install_cert_manager_pod_info.resources | length >= 3 and
+    install_cert_manager_pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length ==
+    (install_cert_manager_pod_info.resources | length)
+  retries: "{{ (install_cert_manager_wait_timeout / 10) | int }}"
   delay: 10
 
 - name: Check if cmctl is available
-  ansible.builtin.shell: which cmctl
-  register: cmctl_check
+  ansible.builtin.command: which cmctl
+  register: install_cert_manager_cmctl_check
   failed_when: false
   changed_when: false
-  when: cert_manager_verify_installation
+  when: install_cert_manager_verify_installation
 
 - name: Verify cert-manager API is ready (using cmctl)
-  ansible.builtin.shell: cmctl check api --wait=2m
-  register: api_check
-  when: 
-    - cert_manager_verify_installation
-    - cmctl_check.rc == 0
+  ansible.builtin.command: cmctl check api --wait=2m
+  register: install_cert_manager_api_check
+  when:
+    - install_cert_manager_verify_installation
+    - install_cert_manager_cmctl_check.rc == 0
   changed_when: false
 
 - name: Verify cert-manager API is ready (manual check)
   kubernetes.core.k8s_info:
     api_version: cert-manager.io/v1
     kind: ClusterIssuer
-  register: crd_check
-  when: 
-    - cert_manager_verify_installation
-    - cmctl_check.rc != 0
+  register: install_cert_manager_crd_check
+  when:
+    - install_cert_manager_verify_installation
+    - install_cert_manager_cmctl_check.rc != 0
   changed_when: false
 
 - name: Create end-to-end test resources
@@ -92,7 +93,7 @@
           secretName: selfsigned-cert-tls
           issuerRef:
             name: test-selfsigned
-  when: cert_manager_e2e_test
+  when: install_cert_manager_e2e_test
 
 - name: Wait for test certificate to be ready
   kubernetes.core.k8s_info:
@@ -105,7 +106,7 @@
       type: Ready
       status: "True"
     wait_timeout: 60
-  when: cert_manager_e2e_test
+  when: install_cert_manager_e2e_test
 
 - name: Clean up test resources
   kubernetes.core.k8s:
@@ -113,7 +114,7 @@
     api_version: v1
     kind: Namespace
     name: cert-manager-test
-  when: cert_manager_e2e_test
+  when: install_cert_manager_e2e_test
 
 - name: Display cert-manager installation status
   ansible.builtin.debug:
@@ -121,14 +122,24 @@
       - "🎉 cert-manager has been installed successfully!"
       - ""
       - "📋 Installation details:"
-      - "   • Version: {{ cert_manager_version }}"
-      - "   • Namespace: {{ cert_manager_namespace }}"
+      - "   • Version: {{ install_cert_manager_version }}"
+      - "   • Namespace: {{ install_cert_manager_namespace }}"
       - "   • Components: cert-manager, cert-manager-cainjector, cert-manager-webhook"
       - ""
       - "✅ Verification status:"
-      - "   • Pods ready: {{ pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length }}/{{ pod_info.resources | length }}"
-      - "   • API ready: {{ 'Yes' if (api_check is defined and api_check.rc is defined and api_check.rc == 0) or (crd_check is defined and crd_check.resources is defined) else 'Check manually with: cmctl check api' }}"
-      - "   • E2E test: {{ 'Passed' if cert_manager_e2e_test else 'Skipped' }}"
+      - >-
+        • Pods ready: {{
+        install_cert_manager_pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length
+        }}/{{ install_cert_manager_pod_info.resources | length }}
+      - >-
+        • API ready: {{
+        'Yes' if (install_cert_manager_api_check is defined and
+        install_cert_manager_api_check.rc is defined and
+        install_cert_manager_api_check.rc == 0) or
+        (install_cert_manager_crd_check is defined and
+        install_cert_manager_crd_check.resources is defined)
+        else 'Check manually with: cmctl check api' }}
+      - "   • E2E test: {{ 'Passed' if install_cert_manager_e2e_test else 'Skipped' }}"
       - ""
       - "📖 Next steps:"
       - "   1. Create issuers (ClusterIssuer or Issuer resources)"
@@ -136,6 +147,6 @@
       - "   3. See https://cert-manager.io/docs/configuration/ for configuration options"
       - ""
       - "🔧 Useful commands:"
-      - "   • Check status: kubectl get pods -n {{ cert_manager_namespace }}"
+      - "   • Check status: kubectl get pods -n {{ install_cert_manager_namespace }}"
       - "   • Verify API: cmctl check api"
-      - "   • View logs: kubectl logs -n {{ cert_manager_namespace }} deployment/cert-manager" 
+      - "   • View logs: kubectl logs -n {{ install_cert_manager_namespace }} deployment/cert-manager"

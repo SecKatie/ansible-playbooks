@@ -1,0 +1,30 @@
+---
+# Default variables for install_sonarr role
+# These can be overridden in playbooks or inventory
+
+# Sonarr version
+sonarr_version: "4.0.11"
+
+# Gluetun version
+gluetun_version: "v3.39.1"
+
+# Namespace
+sonarr_namespace: "sonarr"
+
+# Resource requests and limits
+sonarr_cpu_request: "200m"
+sonarr_memory_request: "512Mi"
+sonarr_cpu_limit: "2000m"
+sonarr_memory_limit: "2Gi"
+
+gluetun_cpu_request: "100m"
+gluetun_memory_request: "128Mi"
+gluetun_cpu_limit: "500m"
+gluetun_memory_limit: "512Mi"
+
+# Storage sizes
+sonarr_config_storage: "10Gi"
+sonarr_media_storage: "1Ti"
+
+# Timezone
+sonarr_timezone: "America/New_York"

@@ -4,4 +4,4 @@
     state: present
     src: "{{ item }}"
   with_fileglob:
-    - "ghost/*.yaml"
+    - "{{ role_path }}/files/*.yaml"

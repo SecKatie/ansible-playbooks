@@ -1,18 +1,18 @@
 ---
-# Version of Kubernetes Dashboard to install
-k8s_dashboard_version: "v2.7.0"
+# Helm repository for Kubernetes Dashboard
+k8s_dashboard_helm_repo_name: "kubernetes-dashboard"
+k8s_dashboard_helm_repo_url: "https://kubernetes.github.io/dashboard/"
+
+# Helm chart name and version
+k8s_dashboard_helm_chart: "kubernetes-dashboard/kubernetes-dashboard"
+k8s_dashboard_helm_chart_version: "7.14.0"
 
 # Namespace where the dashboard will be deployed
 k8s_dashboard_namespace: "kubernetes-dashboard"
 
-# Service type for dashboard access - determines how the dashboard is exposed
-k8s_dashboard_service_type: "NodePort"  # Can be NodePort or LoadBalancer
+# Helm release name
+k8s_dashboard_release_name: "kubernetes-dashboard"
 
-# Port number for NodePort service type access
-k8s_dashboard_node_port: 30443  # Note: no quotes, should be a number 
-
-# URL to download the dashboard manifest from GitHub
-k8s_dashboard_manifest_url: "https://raw.githubusercontent.com/kubernetes/dashboard/{{ k8s_dashboard_version }}/aio/deploy/recommended.yaml"
-
-# Local path where the downloaded manifest will be stored
-k8s_dashboard_manifest_dest: "/tmp/k8s-dashboard-{{ k8s_dashboard_version }}.yaml"
+# Port for port-forwarding access
+k8s_dashboard_local_port: 8443
+k8s_dashboard_service_port: 443

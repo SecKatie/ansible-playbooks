@@ -1,0 +1,225 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: sonarr
+  labels:
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: sonarr
+    app.kubernetes.io/part-of: media
+    app.kubernetes.io/component: pvr
+    app.kubernetes.io/managed-by: ansible
+  annotations:
+    app.kubernetes.io/description: "Sonarr PVR for TV shows with Mullvad VPN"
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sonarr
+      app.kubernetes.io/instance: sonarr
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sonarr
+        app.kubernetes.io/instance: sonarr
+        app.kubernetes.io/part-of: media
+        app.kubernetes.io/component: pvr
+        app.kubernetes.io/managed-by: ansible
+    spec:
+      containers:
+      # Gluetun VPN container - all traffic routes through this
+      - name: gluetun
+        image: qmcgaw/gluetun:v3.39.1
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsUser: 0
+        env:
+        - name: VPN_SERVICE_PROVIDER
+          value: "mullvad"
+        - name: VPN_TYPE
+          value: "wireguard"
+        - name: WIREGUARD_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sonarr-vpn-secrets
+              key: WIREGUARD_PRIVATE_KEY
+        - name: WIREGUARD_ADDRESSES
+          value: "10.67.191.222/32"
+        - name: SERVER_CITIES
+          valueFrom:
+            secretKeyRef:
+              name: sonarr-vpn-secrets
+              key: SERVER_CITIES
+              optional: true
+        - name: TZ
+          value: "America/New_York"
+        - name: FIREWALL_VPN_INPUT_PORTS
+          value: "8989,8080"
+        - name: FIREWALL_OUTBOUND_SUBNETS
+          value: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+        - name: HEALTH_VPN_DURATION_INITIAL
+          value: "60s"
+        - name: HTTP_CONTROL_SERVER_ADDRESS
+          value: ":8000"
+        - name: DOT
+          value: "off"
+        - name: DNS_ADDRESS
+          value: "1.1.1.1"
+        ports:
+        - containerPort: 8000
+          name: gluetun-http
+          protocol: TCP
+        - containerPort: 8989
+          name: sonarr-http
+          protocol: TCP
+        - containerPort: 8080
+          name: qbit-http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /v1/publicip/ip
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /v1/publicip/ip
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+      # Sonarr application container
+      - name: sonarr
+        image: linuxserver/sonarr:4.0.11
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/New_York"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: media
+          mountPath: /media
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8989
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 8989
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      # qBittorrent download client container
+      - name: qbittorrent
+        image: linuxserver/qbittorrent:4.6.7
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "America/New_York"
+        - name: WEBUI_PORT
+          value: "8080"
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+        volumeMounts:
+        - name: qbittorrent-config
+          mountPath: /config
+        - name: media
+          mountPath: /media
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: sonarr-config-pvc
+      - name: qbittorrent-config
+        persistentVolumeClaim:
+          claimName: qbittorrent-config-pvc
+      - name: media
+        persistentVolumeClaim:
+          claimName: sonarr-media-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: sonarr
+  labels:
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: sonarr
+    app.kubernetes.io/part-of: media
+    app.kubernetes.io/component: pvr
+    app.kubernetes.io/managed-by: ansible
+  annotations:
+    app.kubernetes.io/description: "Sonarr PVR service"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8989
+    targetPort: 8989
+    protocol: TCP
+    name: http
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: gluetun
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: qbittorrent
+  selector:
+    app.kubernetes.io/name: sonarr
+    app.kubernetes.io/instance: sonarr

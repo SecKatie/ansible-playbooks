@@ -30,6 +30,11 @@
   ignore_errors: true
   changed_when: false
 
+- name: Initialize existing_tunnel variable
+  ansible.builtin.set_fact:
+    existing_tunnel: {}
+  when: tunnel_list_result.rc != 0 or tunnel_list_result.stdout == ""
+
 - name: Extract existing tunnel information
   ansible.builtin.set_fact:
     existing_tunnel: "{{ (tunnel_list_result.stdout | from_json) | selectattr('name', 'equalto', 'jellyfin-tunnel') | list | first | default({}) }}"
@@ -40,13 +45,13 @@
     cloudflared tunnel create jellyfin-tunnel
   register: tunnel_create_result
   ignore_errors: true
-  when: existing_tunnel == {} or existing_tunnel is not defined
+  when: existing_tunnel == {}
 
 - name: Set tunnel information from existing tunnel
   ansible.builtin.set_fact:
     tunnel_id: "{{ existing_tunnel.id }}"
     creds_path: "{{ ansible_env.HOME }}/.cloudflared/{{ existing_tunnel.id }}.json"
-  when: existing_tunnel != {} and existing_tunnel is defined
+  when: existing_tunnel != {}
 
 - name: Set tunnel information from newly created tunnel
   ansible.builtin.set_fact:

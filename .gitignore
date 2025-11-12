@@ -56,7 +56,5 @@ kubeconfig
 .aider*
 
 # Ansible specific
-ansible.cfg
-collections/.env
 
-.env
+.envrc

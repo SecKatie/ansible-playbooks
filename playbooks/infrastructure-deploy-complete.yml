@@ -3,7 +3,13 @@
     - rpi_setup
 - hosts: localhost
   roles:
-    - k8s
+    - install_kubeseal
+    - install_cert_manager
+    - install_k8s_dashboard
+    - install_ghost
+    - install_docmost
+    - install_jellyfin
+    - install_sonarr
     # - role: dns_cname
     #   vars:
     #     dns_cname_zone: "example.com"
