@@ -1,6 +1,5 @@
 # Ansible specific
 *.retry
-ansible.cfg
 inventory.ini
 vault.yml
 vault.yaml
