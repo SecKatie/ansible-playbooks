@@ -1,4 +1,0 @@
----
-# Cloudflare Operator configuration
-cloudflare_operator_namespace: "cloudflare-operator-system"
-cloudflare_operator_secret_name: "cloudflare-api-token" 
