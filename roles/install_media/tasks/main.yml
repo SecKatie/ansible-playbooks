@@ -1,0 +1,131 @@
+---
+- name: Create media namespace
+  kubernetes.core.k8s:
+    name: sonarr
+    api_version: v1
+    kind: Namespace
+    state: present
+    definition:
+      metadata:
+        labels:
+          app.kubernetes.io/part-of: media
+          app.kubernetes.io/managed-by: ansible
+        annotations:
+          app.kubernetes.io/description: "Media stack (Sonarr, Radarr, Downloads with VPN)"
+
+- name: Deploy sealed secrets
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/sealedsecrets.yaml"
+
+- name: Deploy storage components
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/storage.yaml"
+
+- name: Deploy downloads stack (VPN protected)
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/downloads.yaml"
+
+- name: Deploy Sonarr application
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/sonarr-app.yaml"
+
+- name: Deploy Radarr application
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/radarr-app.yaml"
+
+- name: Wait for downloads deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: downloads
+    namespace: sonarr
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 600
+
+- name: Wait for Sonarr deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: sonarr
+    namespace: sonarr
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+- name: Wait for Radarr deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: radarr
+    namespace: sonarr
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+- name: Get VPN public IP
+  ansible.builtin.shell: |
+    kubectl exec -n sonarr deployment/downloads -c gluetun -- wget -qO- http://localhost:8000/v1/publicip/ip
+  register: vpn_ip_result
+  ignore_errors: true
+  changed_when: false
+
+- name: Display deployment status
+  ansible.builtin.debug:
+    msg:
+      - "🎉 Media stack has been deployed successfully!"
+      - ""
+      - "🔒 VPN Status (Downloads Pod):"
+      - "   • Provider: Mullvad WireGuard"
+      - "   • VPN Public IP: {{ vpn_ip_result.stdout | default('Unable to retrieve - check pod logs') }}"
+      - "   • Protected services: qBittorrent, SABnzbd, Jackett, FlareSolverr"
+      - ""
+      - "📺 Sonarr (TV Shows) - NO VPN:"
+      - "   • Internal: http://sonarr.sonarr.svc.cluster.local:8989"
+      - "   • Port Forward: kubectl -n sonarr port-forward svc/sonarr 8989:8989"
+      - "   • Then access: http://localhost:8989"
+      - ""
+      - "🎬 Radarr (Movies) - NO VPN:"
+      - "   • Internal: http://radarr.sonarr.svc.cluster.local:7878"
+      - "   • Port Forward: kubectl -n sonarr port-forward svc/radarr 7878:7878"
+      - "   • Then access: http://localhost:7878"
+      - ""
+      - "⬇️  Downloads Stack - WITH VPN:"
+      - "   • qBittorrent: kubectl -n sonarr port-forward svc/downloads 8080:8080 -> http://localhost:8080"
+      - "   • SABnzbd: kubectl -n sonarr port-forward svc/downloads 8085:8085 -> http://localhost:8085"
+      - "   • Jackett: kubectl -n sonarr port-forward svc/downloads 9117:9117 -> http://localhost:9117"
+      - ""
+      - "⚠️  SABnzbd First-Run Setup Required:"
+      - "   SABnzbd defaults to port 8080 which conflicts with qBittorrent."
+      - "   After deployment, configure SABnzbd to use port 8085:"
+      - "   1. kubectl exec -n sonarr deployment/downloads -c sabnzbd -- sed -i 's/port = 8080/port = 8085/' /config/sabnzbd.ini"
+      - "   2. kubectl exec -n sonarr deployment/downloads -c sabnzbd -- sed -i 's/host = 127.0.0.1/host = 0.0.0.0/' /config/sabnzbd.ini"
+      - "   3. kubectl rollout restart -n sonarr deployment/downloads"
+      - ""
+      - "💾 Storage:"
+      - "   • Configs: Local storage (10Gi each)"
+      - "   • Media: NFS storage at /media (shared with Jellyfin)"
+      - ""
+      - "⚠️  Important Notes:"
+      - "   • Configure Sonarr/Radarr to use downloads.sonarr.svc.cluster.local:8080 for qBittorrent"
+      - "   • Configure Sonarr/Radarr to use downloads.sonarr.svc.cluster.local:8085 for SABnzbd"
+      - "   • Configure Sonarr/Radarr to use downloads.sonarr.svc.cluster.local:9117 for Jackett"
+      - "   • Configure download paths: /media/downloads"
+      - "   • Configure TV shows path: /media/tv"
+      - "   • Configure movies path: /media/movies"
+      - ""
+      - "🔧 To update VPN credentials:"
+      - "   1. Edit /tmp/downloads-secrets.yaml with new credentials"
+      - "   2. Seal it: kubeseal --format=yaml < /tmp/downloads-secrets.yaml > roles/install_media/files/downloads-sealedsecrets.yaml"
+      - "   3. Re-run this playbook"
