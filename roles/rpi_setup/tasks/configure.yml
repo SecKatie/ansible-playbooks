@@ -11,3 +11,18 @@
        line: 'node.session.timeo.replacement_timeout = 120'}
   become: true
   notify: restart iscsi services
+
+# Disable IPv6 on all interfaces
+- name: Disable IPv6 via sysctl
+  ansible.posix.sysctl:
+    name: "{{ item }}"
+    value: '1'
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/99-disable-ipv6.conf
+  loop:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+    - net.ipv6.conf.lo.disable_ipv6
+  become: true
+  notify: restart k3s
