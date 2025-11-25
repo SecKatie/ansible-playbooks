@@ -58,3 +58,6 @@ kubeconfig
 # Ansible specific
 
 .envrc
+
+# WireGuard configs (contain private keys)
+*.conf

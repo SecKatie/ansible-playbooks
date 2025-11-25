@@ -20,11 +20,10 @@ Deploys the complete infrastructure including Raspberry Pi setup and Kubernetes 
 - Configures Raspberry Pi nodes (iSCSI, cgroups)
 - Deploys Kubeseal for sealed secrets
 - Installs cert-manager for TLS certificate management
+- Installs observability stack (Prometheus, Node Exporter, Grafana)
 - Deploys Kubernetes Dashboard
-- Installs Ghost blogging platform
-- Installs Docmost documentation platform
 - Installs Jellyfin media server
-- Installs Sonarr PVR with Mullvad VPN protection
+- Installs Media stack (Sonarr, Radarr, qBittorrent) with Mullvad VPN protection
 
 **Usage**:
 ```bash
@@ -63,14 +62,15 @@ ansible-playbook -i inventory/hosts.yml playbooks/maintenance-update-packages.ym
 - **rpi_setup**: Configures Raspberry Pi nodes with iSCSI and cgroup settings
 - **install_kubeseal**: Deploys Sealed Secrets controller
 - **install_cert_manager**: Installs cert-manager for certificate management
+- **install_prometheus**: Deploys Prometheus metrics server for monitoring
+- **install_node_exporter**: Deploys Node Exporter DaemonSet for system metrics
+- **install_grafana**: Deploys Grafana dashboard for observability and visualization
 - **install_k8s_dashboard**: Deploys Kubernetes Dashboard with Helm
 
 ### Application Roles
 
-- **install_ghost**: Deploys Ghost blogging platform with MySQL backend
-- **install_docmost**: Deploys Docmost documentation platform with PostgreSQL and Redis
 - **install_jellyfin**: Deploys Jellyfin media server with Cloudflare tunnel support
-- **install_sonarr**: Deploys Sonarr PVR for TV shows with Mullvad VPN via gluetun sidecar
+- **install_media**: Deploys media stack (Sonarr, Radarr, qBittorrent, Jackett) with Mullvad VPN via gluetun sidecar
 
 ## Common Issues and Solutions
 
@@ -85,12 +85,6 @@ ansible-playbook -i inventory/hosts.yml playbooks/maintenance-update-packages.ym
 **Error**: `spec.resources.requests.storage: Forbidden: field can not be less than status.capacity`
 
 **Solution**: This occurs when trying to reduce PVC size. Update the storage.yaml file to match or exceed the current PVC size. You cannot reduce PVC sizes in Kubernetes.
-
-### Issue: Ghost/Docmost roles skipped
-
-**Error**: `Unable to find 'ghost' in expected paths`
-
-**Solution**: The roles now use `{{ role_path }}/files/*.yaml` pattern for fileglob. Ensure your role uses the correct path.
 
 ### Issue: Cloudflared not found (Jellyfin)
 
@@ -110,6 +104,173 @@ After deploying the Kubernetes Dashboard:
 2. Access the dashboard at: https://localhost:8443
 
 3. Use the admin token displayed in the playbook output to log in
+
+## Observability Stack (Grafana + Prometheus + Node Exporter)
+
+The observability stack provides comprehensive monitoring and visualization for your Kubernetes cluster and applications.
+
+### Architecture
+
+- **Prometheus**: Metrics collection and storage server that scrapes metrics from configured targets
+- **Node Exporter**: DaemonSet that exposes hardware and OS metrics from every cluster node
+- **Grafana**: Visualization dashboard with Prometheus pre-configured as the default data source
+
+### Initial Setup
+
+Before deploying Grafana, you must create sealed secrets for the admin credentials:
+
+1. **Create the admin credentials secret**:
+   ```bash
+   # Create raw secret with your desired credentials
+   cat > /tmp/grafana-secrets.yaml <<EOF
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: grafana-admin-credentials
+     namespace: monitoring
+   type: Opaque
+   stringData:
+     admin-user: admin
+     admin-password: your-secure-password-here
+   EOF
+   ```
+
+2. **Seal the secret**:
+   ```bash
+   kubeseal --format=yaml < /tmp/grafana-secrets.yaml > roles/install_grafana/files/sealedsecrets.yaml
+   ```
+
+3. **Clean up the temporary file**:
+   ```bash
+   rm /tmp/grafana-secrets.yaml
+   ```
+
+4. **Deploy the stack**:
+   ```bash
+   # Deploy only the observability stack
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags observability
+
+   # Or deploy the full infrastructure (which includes observability)
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
+   ```
+
+### Accessing the Dashboards
+
+#### Grafana
+
+```bash
+# Port forward to access Grafana
+kubectl -n monitoring port-forward svc/grafana 3000:3000
+
+# Access at: http://localhost:3000
+# Login with the credentials you configured in the sealed secret
+```
+
+#### Prometheus
+
+```bash
+# Port forward to access Prometheus
+kubectl -n monitoring port-forward svc/prometheus 9090:9090
+
+# Access at: http://localhost:9090
+```
+
+### What's Monitored
+
+The default Prometheus configuration scrapes metrics from:
+
+- **Prometheus itself**: Self-monitoring
+- **Node Exporter**: System metrics (CPU, memory, disk, network) from all cluster nodes
+- **Kubernetes API Server**: Cluster-level metrics
+- **Kubernetes Nodes**: Node-level metrics with node labels
+- **Kubernetes Pods**: Any pod annotated with `prometheus.io/scrape: "true"`
+
+### Adding Custom Metrics to Your Applications
+
+To expose metrics from your applications to Prometheus:
+
+1. **Add annotations to your pod**:
+   ```yaml
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     annotations:
+       prometheus.io/scrape: "true"
+       prometheus.io/port: "8080"        # Your metrics port
+       prometheus.io/path: "/metrics"    # Your metrics endpoint
+   ```
+
+2. **Expose metrics in your application**:
+   - Implement a `/metrics` endpoint in your application
+   - Use Prometheus client libraries for your language
+   - Prometheus will automatically discover and scrape your pod
+
+### Importing Dashboards to Grafana
+
+Grafana has thousands of pre-built dashboards available at https://grafana.com/grafana/dashboards/
+
+Popular dashboards for Kubernetes monitoring:
+
+- **Node Exporter Full** (ID: 1860): Comprehensive system metrics
+- **Kubernetes Cluster Monitoring** (ID: 7249): Cluster overview
+- **Kubernetes Pod Monitoring** (ID: 6417): Pod-level metrics
+
+To import a dashboard:
+
+1. Log in to Grafana
+2. Click **Dashboards** → **Import**
+3. Enter the dashboard ID (e.g., 1860)
+4. Select **Prometheus** as the data source
+5. Click **Import**
+
+### Configuring Data Retention
+
+By default, Prometheus retains metrics for 30 days. To change this:
+
+1. Edit `roles/install_prometheus/files/prometheus.yaml`
+2. Update the `--storage.tsdb.retention.time` argument
+3. Redeploy: `ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags prometheus`
+
+### Storage Requirements
+
+- **Prometheus**: 20Gi by default (configurable in `roles/install_prometheus/files/storage.yaml`)
+- **Grafana**: 10Gi by default (configurable in `roles/install_grafana/files/storage.yaml`)
+
+Adjust these values based on your retention requirements and cluster size.
+
+### Troubleshooting
+
+#### Grafana won't start - sealed secret error
+
+**Error**: Pod fails with secret mount errors
+
+**Solution**: Ensure you created and sealed the admin credentials (see Initial Setup above)
+
+#### Prometheus not scraping targets
+
+Check Prometheus targets:
+```bash
+# Open Prometheus UI
+kubectl -n monitoring port-forward svc/prometheus 9090:9090
+
+# Visit http://localhost:9090/targets
+# All targets should show as "UP"
+```
+
+#### No data in Grafana dashboards
+
+1. Check that Prometheus is running: `kubectl get pods -n monitoring`
+2. Verify Prometheus is scraping targets (see above)
+3. In Grafana, go to **Configuration** → **Data Sources** → **Prometheus** and click **Test**
+4. Check that the Prometheus URL is correct: `http://prometheus.monitoring.svc.cluster.local:9090`
+
+### Updating Admin Credentials
+
+To change Grafana admin credentials:
+
+1. Create new sealed secret (see Initial Setup)
+2. Apply the new secret: `kubectl apply -f roles/install_grafana/files/sealedsecrets.yaml`
+3. Restart Grafana: `kubectl rollout restart -n monitoring deployment/grafana`
 
 ## Working with Sealed Secrets
 
@@ -177,44 +338,9 @@ sudo install -m 755 kubeseal /usr/local/bin/kubeseal
 - **Never commit raw secrets to Git** - only commit the sealed versions
 - **Updating secrets**: If you need to change a secret value, create a new sealed secret and apply it. The controller will update the underlying secret.
 
-### Example: Updating Docmost Secrets
+## Media Stack with Mullvad VPN
 
-1. Generate new passwords:
-   ```bash
-   POSTGRES_PASSWORD=$(openssl rand -hex 16)
-   APP_SECRET=$(openssl rand -hex 32)
-   ```
-
-2. Create raw secret:
-   ```bash
-   cat > /tmp/docmost-secrets.yaml <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: docmost-secrets
-     namespace: docmost
-   type: Opaque
-   stringData:
-     APP_SECRET: "$APP_SECRET"
-     POSTGRES_PASSWORD: "$POSTGRES_PASSWORD"
-     DATABASE_URL: "postgresql://docmost:$POSTGRES_PASSWORD@postgres:5432/docmost?schema=public"
-   EOF
-   ```
-
-3. Seal and update:
-   ```bash
-   kubeseal --format=yaml < /tmp/docmost-secrets.yaml > /tmp/docmost-sealed.yaml
-   # Copy contents to roles/install_docmost/files/sealedsecrets.yaml
-   ```
-
-4. If updating an existing database password, you must also update the database:
-   ```bash
-   kubectl exec -n docmost postgres-0 -- psql -U docmost -c "ALTER USER docmost WITH PASSWORD 'new-password';"
-   ```
-
-## Sonarr with Mullvad VPN
-
-The Sonarr role deploys a PVR (Personal Video Recorder) for automatically managing and downloading TV shows. All traffic is routed through Mullvad VPN using a gluetun sidecar container.
+The media role deploys Sonarr (TV), Radarr (movies), qBittorrent (downloads), and Jackett (indexers). All traffic is routed through Mullvad VPN using a gluetun sidecar container.
 
 ### Initial Setup
 
@@ -231,8 +357,8 @@ The Sonarr role deploys a PVR (Personal Video Recorder) for automatically managi
    apiVersion: v1
    kind: Secret
    metadata:
-     name: sonarr-vpn-secrets
-     namespace: sonarr
+     name: media-vpn-secrets
+     namespace: media
    type: Opaque
    stringData:
      WIREGUARD_PRIVATE_KEY: "your_private_key_here"
@@ -241,13 +367,13 @@ The Sonarr role deploys a PVR (Personal Video Recorder) for automatically managi
    EOF
 
    # Seal it
-   kubeseal --format=yaml < /tmp/sonarr-vpn-secrets.yaml > roles/install_sonarr/files/sealedsecrets.yaml
+   kubeseal --format=yaml < /tmp/sonarr-vpn-secrets.yaml > roles/install_media/files/sealedsecrets.yaml
 
    # Clean up
    rm /tmp/sonarr-vpn-secrets.yaml
    ```
 
-3. **Deploy Sonarr**:
+3. **Deploy the media stack**:
    ```bash
    ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
    ```
@@ -256,22 +382,50 @@ The Sonarr role deploys a PVR (Personal Video Recorder) for automatically managi
 
 ```bash
 # Port forward to access Sonarr
-kubectl -n sonarr port-forward svc/sonarr 8989:8989
+kubectl -n media port-forward svc/sonarr 8989:8989
 
 # Access at: http://localhost:8989
+```
+
+### Accessing qBittorrent
+
+qBittorrent runs as a shared download client. To access the web UI:
+
+```bash
+# Port forward to access qBittorrent
+kubectl -n media port-forward svc/qbittorrent 8080:8080
+
+# Access at: http://localhost:8080
+```
+
+### Accessing Jackett
+
+Jackett (indexer manager) provides indexer support. To access the web UI:
+
+```bash
+# Port forward to access Jackett
+kubectl -n media port-forward svc/jackett 9117:9117
+
+# Access at: http://localhost:9117
+```
+
+### Accessing Radarr
+
+```bash
+# Port forward to access Radarr
+kubectl -n media port-forward svc/radarr 7878:7878
+
+# Access at: http://localhost:7878
 ```
 
 ### Verifying VPN Connection
 
 ```bash
-# Check VPN public IP
-kubectl exec -n sonarr deployment/sonarr -c gluetun -- wget -qO- http://localhost:8000/v1/publicip/ip
+# Check VPN public IP (from any media pod)
+kubectl exec -n media deployment/sonarr -c gluetun -- wget -qO- http://localhost:8000/v1/publicip/ip
 
 # Check VPN logs
-kubectl logs -n sonarr deployment/sonarr -c gluetun
-
-# Check Sonarr logs
-kubectl logs -n sonarr deployment/sonarr -c sonarr
+kubectl logs -n media deployment/sonarr -c gluetun
 ```
 
 ### Configuring Sonarr for Jellyfin Integration
@@ -303,8 +457,9 @@ If you need to rotate your Mullvad VPN credentials:
 2. Create and seal new secret (see Initial Setup above)
 3. Re-run the playbook or apply directly:
    ```bash
-   kubectl apply -f roles/install_sonarr/files/sealedsecrets.yaml
-   kubectl rollout restart -n sonarr deployment/sonarr
+   kubectl apply -f roles/install_media/files/sealedsecrets.yaml
+   kubectl rollout restart -n media deployment/sonarr
+   kubectl rollout restart -n media deployment/radarr
    ```
 
 ## Notes

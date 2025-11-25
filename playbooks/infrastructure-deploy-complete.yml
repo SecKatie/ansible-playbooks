@@ -1,16 +1,29 @@
 - hosts: raspberrypi
+  tags: [rpi]
   roles:
-    - rpi_setup
+    - role: rpi_setup
+      tags: [rpi_setup]
+
 - hosts: localhost
   roles:
-    - install_kubeseal
-    - install_cert_manager
-    - install_k8s_dashboard
-    - install_ghost
-    - install_docmost
-    - install_jellyfin
-    - install_sonarr
+    - role: install_kubeseal
+      tags: [kubeseal]
+    - role: install_cert_manager
+      tags: [cert_manager]
+    - role: install_prometheus
+      tags: [observability, prometheus]
+    - role: install_node_exporter
+      tags: [observability, node_exporter]
+    - role: install_grafana
+      tags: [observability, grafana]
+    - role: install_k8s_dashboard
+      tags: [k8s_dashboard]
+    - role: install_jellyfin
+      tags: [jellyfin]
+    - role: install_media
+      tags: [media, sonarr, radarr]
     # - role: dns_cname
+    #   tags: [dns]
     #   vars:
     #     dns_cname_zone: "example.com"
     #     dns_cname_record: "test.example.com"
