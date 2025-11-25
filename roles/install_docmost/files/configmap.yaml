@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: docmost-config
-  namespace: docmost
-data:
-  APP_URL: "https://docmost.mulliken.net"
-  POSTGRES_DB: "docmost"
-  POSTGRES_USER: "docmost"
