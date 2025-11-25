@@ -1,0 +1,54 @@
+---
+# Apply manifests in correct dependency order:
+# 1. Namespace first (required by all other resources)
+# 2. Storage (PVC required by deployment)
+# 3. ConfigMap (required by deployment)
+# 4. Prometheus deployment/service/RBAC
+# 5. kube-state-metrics (provides K8s cluster metrics)
+- name: Deploy Prometheus manifests
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/{{ item }}"
+  loop:
+    - namespace.yaml
+    - storage.yaml
+    - configmap.yaml
+    - prometheus.yaml
+    - kube-state-metrics.yaml
+
+- name: Wait for Prometheus deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: prometheus
+    namespace: monitoring
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+- name: Wait for kube-state-metrics deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: kube-state-metrics
+    namespace: monitoring
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 120
+
+- name: Display Prometheus deployment status
+  ansible.builtin.debug:
+    msg:
+      - "Prometheus and kube-state-metrics have been deployed successfully!"
+      - ""
+      - "Access Prometheus:"
+      - "  kubectl -n monitoring port-forward svc/prometheus 9090:9090"
+      - "  URL: http://localhost:9090"
+      - ""
+      - "Internal cluster access: http://prometheus.monitoring.svc.cluster.local:9090"
+      - ""
+      - "kube-state-metrics provides Kubernetes object metrics (pods, deployments, etc.)"

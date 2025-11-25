@@ -1,0 +1,22 @@
+---
+- name: Deploy Node Exporter manifests
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "{{ role_path }}/files/*.yaml"
+
+- name: Wait for Node Exporter DaemonSet to be ready
+  ansible.builtin.command:
+    cmd: kubectl rollout status daemonset/node-exporter -n monitoring --timeout=180s
+  changed_when: false
+
+- name: Display Node Exporter deployment status
+  ansible.builtin.debug:
+    msg:
+      - "Node Exporter has been deployed successfully!"
+      - ""
+      - "Node Exporter is running as a DaemonSet on all cluster nodes"
+      - "Metrics are available at: http://node-exporter.monitoring.svc.cluster.local:9100/metrics"
+      - ""
+      - "Prometheus will automatically discover and scrape these endpoints"

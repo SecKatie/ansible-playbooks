@@ -1,0 +1,53 @@
+---
+- name: Check if Grafana sealed secret is configured
+  ansible.builtin.shell: |
+    grep -q "kind: SealedSecret" "{{ role_path }}/files/sealedsecrets.yaml"
+  register: sealed_secret_check
+  ignore_errors: true
+  changed_when: false
+
+- name: Fail if sealed secret is not configured
+  ansible.builtin.fail:
+    msg:
+      - "ERROR: Grafana admin credentials sealed secret is not configured!"
+      - ""
+      - "Please create the sealed secret before deploying Grafana:"
+      - "  1. cp {{ role_path }}/files/secrets.yaml.example /tmp/grafana-secrets.yaml"
+      - "  2. Edit /tmp/grafana-secrets.yaml with your admin credentials"
+      - "  3. kubeseal --format=yaml < /tmp/grafana-secrets.yaml > {{ role_path }}/files/sealedsecrets.yaml"
+      - "  4. rm /tmp/grafana-secrets.yaml"
+      - "  5. Re-run this playbook"
+  when: sealed_secret_check.rc != 0
+
+- name: Deploy Grafana manifests
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ item }}"
+  with_fileglob:
+    - "{{ role_path }}/files/*.yaml"
+
+- name: Wait for Grafana deployment to be ready
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: grafana
+    namespace: monitoring
+    wait: true
+    wait_condition:
+      type: Available
+      status: "True"
+    wait_timeout: 300
+
+- name: Display Grafana deployment status
+  ansible.builtin.debug:
+    msg:
+      - "Grafana has been deployed successfully!"
+      - ""
+      - "Access Grafana:"
+      - "  kubectl -n monitoring port-forward svc/grafana 3000:3000"
+      - "  URL: http://localhost:3000"
+      - ""
+      - "Login with the admin credentials you configured in the sealed secret"
+      - ""
+      - "Prometheus datasource has been automatically configured"
+      - "Internal Prometheus URL: http://prometheus.monitoring.svc.cluster.local:9090"
