@@ -1,0 +1,17 @@
+---
+paperless_namespace: "paperless"
+paperless_domain: "paperless.mulliken.net"
+
+# NFS settings
+nfs_server: "172.16.10.248"
+nfs_path: "/volume2/paperless"
+
+# Storage sizes (for PostgreSQL and Redis)
+paperless_postgres_size: "5Gi"
+paperless_redis_size: "1Gi"
+
+# Proton Mail Bridge settings (for email integration)
+# Set to true to enable email integration via Proton Mail Bridge sidecar
+# Requires proton_email and proton_bridge_password in secrets.yml
+paperless_email_enabled: true
+paperless_proton_bridge_size: "1Gi"

@@ -1,0 +1,18 @@
+---
+# PVC for PostgreSQL data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: kaneo-postgres-pvc
+  namespace: kaneo
+  labels:
+    app.kubernetes.io/name: kaneo
+    app.kubernetes.io/part-of: productivity
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: ansible
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi

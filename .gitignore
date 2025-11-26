@@ -61,3 +61,6 @@ kubeconfig
 
 # WireGuard configs (contain private keys)
 *.conf
+
+# Role secrets (raw secrets before sealing)
+roles/*/files/secrets.yml

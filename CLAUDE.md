@@ -23,6 +23,7 @@ Deploys the complete infrastructure including Raspberry Pi setup and Kubernetes 
 - Installs observability stack (Prometheus, Node Exporter, Grafana)
 - Deploys Kubernetes Dashboard
 - Installs Jellyfin media server
+- Installs Kaneo project management with Cloudflare tunnel
 - Installs Media stack (Sonarr, Radarr, qBittorrent) with Mullvad VPN protection
 
 **Usage**:
@@ -70,7 +71,9 @@ ansible-playbook -i inventory/hosts.yml playbooks/maintenance-update-packages.ym
 ### Application Roles
 
 - **install_jellyfin**: Deploys Jellyfin media server with Cloudflare tunnel support
+- **install_kaneo**: Deploys Kaneo project management with PostgreSQL and Cloudflare tunnel support
 - **install_media**: Deploys media stack (Sonarr, Radarr, qBittorrent, Jackett) with Mullvad VPN via gluetun sidecar
+- **install_paperless**: Deploys Paperless-ngx document management with PostgreSQL, Redis, and optional Proton Mail Bridge sidecar
 
 ## Common Issues and Solutions
 
@@ -449,6 +452,80 @@ Recommended directory structure on NFS (`/volume2/media`):
 
 Jellyfin will automatically see new TV shows added to `/media/tv`.
 
+## Kaneo Project Management
+
+Kaneo is an open-source project management platform. The install_kaneo role deploys Kaneo with PostgreSQL database and a Cloudflare tunnel for external access.
+
+### Architecture
+
+- **PostgreSQL**: Database for storing projects, tasks, and user data
+- **Kaneo API**: Backend API server (port 1337)
+- **Kaneo Web**: Frontend web application (port 5173)
+- **Cloudflared**: Tunnel for secure external access
+
+### Initial Setup
+
+Before deploying Kaneo, you must create sealed secrets for database and authentication:
+
+1. **Create the secrets**:
+   ```bash
+   # Create raw secret (replace with your actual values)
+   cat > /tmp/kaneo-secrets.yaml <<EOF
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: kaneo-secrets
+     namespace: kaneo
+   type: Opaque
+   stringData:
+     postgres-user: "kaneo"
+     postgres-password: "your-secure-password-here"
+     database-url: "postgresql://kaneo:your-secure-password-here@kaneo-postgres.kaneo.svc.cluster.local:5432/kaneo"
+     auth-secret: "your-jwt-secret-here-min-32-chars"
+   EOF
+   ```
+
+2. **Seal the secret**:
+   ```bash
+   kubeseal --format=yaml < /tmp/kaneo-secrets.yaml > roles/install_kaneo/files/sealedsecrets.yaml
+   ```
+
+3. **Clean up the temporary file**:
+   ```bash
+   rm /tmp/kaneo-secrets.yaml
+   ```
+
+4. **Deploy Kaneo**:
+   ```bash
+   # Deploy only Kaneo
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags kaneo
+
+   # Or deploy the full infrastructure
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
+   ```
+
+### Accessing Kaneo
+
+After deployment, access Kaneo at https://kaneo.mulliken.net (or your configured domain).
+
+For local access:
+```bash
+# Port forward to access Kaneo Web
+kubectl -n kaneo port-forward svc/kaneo-web 5173:5173
+
+# Access at: http://localhost:5173
+```
+
+### Configuration
+
+The Kaneo URLs are configured in the ConfigMap at `roles/install_kaneo/files/kaneo.yaml`. Update these values to match your domain:
+
+```yaml
+data:
+  client-url: "https://kaneo.mulliken.net"
+  api-url: "https://kaneo.mulliken.net/api"
+```
+
 ### Updating Mullvad Credentials
 
 If you need to rotate your Mullvad VPN credentials:
@@ -461,6 +538,146 @@ If you need to rotate your Mullvad VPN credentials:
    kubectl rollout restart -n media deployment/sonarr
    kubectl rollout restart -n media deployment/radarr
    ```
+
+## Paperless-ngx Document Management
+
+Paperless-ngx is a document management system that scans, indexes, and archives your documents. The install_paperless role deploys Paperless with PostgreSQL, Redis, and optional Proton Mail Bridge integration for email consumption.
+
+### Architecture
+
+- **PostgreSQL**: Database for document metadata
+- **Redis**: Message broker for async tasks
+- **Paperless-ngx**: Main application (port 8000)
+- **Proton Mail Bridge** (optional): IMAP/SMTP sidecar for email integration
+- **Cloudflared**: Tunnel for secure external access
+
+### Initial Setup
+
+1. **Copy and configure secrets**:
+   ```bash
+   cd roles/install_paperless/files
+   cp secrets.yml.example secrets.yml
+   # Edit secrets.yml with your credentials
+   ```
+
+2. **Deploy Paperless**:
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags paperless
+   ```
+
+### Accessing Paperless
+
+```bash
+# Port forward to access Paperless
+kubectl -n paperless port-forward svc/paperless 8000:8000
+
+# Access at: http://localhost:8000
+# Login with the admin credentials from your secrets.yml
+```
+
+### Proton Mail Bridge Setup (Optional)
+
+The Proton Mail Bridge runs as a sidecar container, providing IMAP (port 1143) and SMTP (port 1025) to Paperless for email consumption. This allows Paperless to automatically import documents sent to your email.
+
+#### Step 1: Initialize the Bridge
+
+The bridge requires interactive login first. Run an init pod to authenticate:
+
+```bash
+# Create a temporary pod to initialize the bridge
+kubectl run proton-bridge-init -n paperless -it --rm \
+  --image=shenxn/protonmail-bridge:build \
+  --overrides='{"spec":{"containers":[{"name":"proton-bridge-init","image":"shenxn/protonmail-bridge:build","command":["protonmail-bridge","--cli"],"stdin":true,"tty":true,"volumeMounts":[{"name":"data","mountPath":"/root"}]}],"volumes":[{"name":"data","persistentVolumeClaim":{"claimName":"proton-bridge-pvc"}}]}}' \
+  -- init
+```
+
+**Note**: The PVC must exist first. Deploy with `paperless_email_enabled: true` in defaults to create it, then run the init.
+
+#### Step 2: Login and Get Credentials
+
+In the bridge CLI:
+
+```
+>>> login
+Username: your-proton-email@protonmail.com
+Password: your-proton-password
+# Complete 2FA if enabled
+
+>>> info
+# Note the "Password" shown - this is the bridge-generated password
+# NOT your Proton account password!
+
+>>> exit
+```
+
+#### Step 3: Configure Secrets
+
+Add the bridge credentials to your `secrets.yml`:
+
+```yaml
+# Your Proton email address
+proton_email: "your-proton-email@protonmail.com"
+
+# The bridge-generated password from 'info' command
+proton_bridge_password: "bridge-generated-password-here"
+```
+
+#### Step 4: Enable Email and Redeploy
+
+1. Edit `roles/install_paperless/defaults/main.yml`:
+   ```yaml
+   paperless_email_enabled: true
+   ```
+
+2. Redeploy:
+   ```bash
+   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags paperless
+   ```
+
+### Configuring Email Rules in Paperless
+
+After deployment, configure email consumption in Paperless:
+
+1. Access Paperless web UI
+2. Go to **Settings** → **Mail**
+3. Add a mail account:
+   - **Name**: Proton Mail
+   - **IMAP Server**: localhost (sidecar handles this)
+   - **IMAP Port**: 1143
+   - **IMAP Security**: None (internal traffic)
+   - **Username**: Your Proton email
+   - **Password**: Bridge-generated password
+4. Create mail rules to specify which folders/senders to import from
+
+### Troubleshooting
+
+#### Bridge won't connect
+
+Check the bridge logs:
+```bash
+kubectl logs -n paperless deployment/paperless -c proton-bridge
+```
+
+#### Re-initialize the bridge
+
+If you need to re-authenticate:
+```bash
+# Delete the existing PVC data
+kubectl delete pvc proton-bridge-pvc -n paperless
+
+# Redeploy to recreate PVC
+ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags paperless
+
+# Run init again (see Step 1)
+```
+
+#### Paperless can't connect to bridge
+
+Verify the bridge is ready:
+```bash
+# Check if IMAP port is responding
+kubectl exec -n paperless deployment/paperless -c proton-bridge -- nc -zv localhost 1143
+```
 
 ## Notes
 

@@ -6,6 +6,8 @@
 
 - hosts: localhost
   roles:
+    - role: install_longhorn
+      tags: [longhorn, storage]
     - role: install_kubeseal
       tags: [kubeseal]
     - role: install_cert_manager
@@ -20,8 +22,12 @@
       tags: [k8s_dashboard]
     - role: install_jellyfin
       tags: [jellyfin]
+    - role: install_kaneo
+      tags: [kaneo]
     - role: install_media
       tags: [media, sonarr, radarr]
+    - role: install_paperless
+      tags: [paperless]
     # - role: dns_cname
     #   tags: [dns]
     #   vars:

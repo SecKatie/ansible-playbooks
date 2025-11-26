@@ -1,0 +1,63 @@
+---
+- name: Create Longhorn namespace
+  kubernetes.core.k8s:
+    name: "{{ longhorn_namespace }}"
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install open-iscsi on target nodes
+  ansible.builtin.apt:
+    name: open-iscsi
+    state: present
+  delegate_to: "{{ item }}"
+  loop: "{{ groups['new_k3s_agents'] | default([]) }}"
+  become: true
+  ignore_errors: true
+
+- name: Apply Longhorn manifests
+  kubernetes.core.k8s:
+    state: present
+    src: "https://raw.githubusercontent.com/longhorn/longhorn/v{{ longhorn_version }}/deploy/longhorn.yaml"
+    apply: true
+    server_side_apply:
+      field_manager: ansible
+      force_conflicts: true
+
+- name: Wait for Longhorn manager pods to be ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: "{{ longhorn_namespace }}"
+    label_selectors:
+      - app=longhorn-manager
+    field_selectors:
+      - status.phase=Running
+  register: longhorn_pods
+  until: longhorn_pods.resources | length >= 3
+  retries: 30
+  delay: 10
+
+- name: Disable upgrade checker
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: longhorn.io/v1beta2
+      kind: Setting
+      metadata:
+        name: upgrade-checker
+        namespace: "{{ longhorn_namespace }}"
+      value: "{{ longhorn_upgrade_checker | string | lower }}"
+  when: not longhorn_upgrade_checker
+
+- name: Display Longhorn status
+  ansible.builtin.debug:
+    msg:
+      - "Longhorn v{{ longhorn_version }} has been deployed!"
+      - ""
+      - "Access the Longhorn UI:"
+      - "  kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80"
+      - "  http://localhost:8080"
+      - ""
+      - "Registered nodes:"
+      - "  kubectl get nodes.longhorn.io -n longhorn-system"

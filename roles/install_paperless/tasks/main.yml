@@ -1,0 +1,153 @@
+---
+- name: Create paperless namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ paperless_namespace }}"
+        labels:
+          app.kubernetes.io/name: paperless
+          app.kubernetes.io/managed-by: ansible
+
+- name: Check if raw secrets file exists
+  ansible.builtin.stat:
+    path: "{{ role_path }}/files/secrets.yml"
+  register: raw_secrets_file
+
+- name: Fail if secrets file doesn't exist
+  ansible.builtin.fail:
+    msg: |
+      Raw secrets file not found at {{ role_path }}/files/secrets.yml
+
+      Please create this file with your credentials. See secrets.yml.example for the format.
+
+      Quick start:
+        cp {{ role_path }}/files/secrets.yml.example {{ role_path }}/files/secrets.yml
+        # Edit the file with your values
+  when: not raw_secrets_file.stat.exists
+
+- name: Load raw secrets
+  ansible.builtin.include_vars:
+    file: "{{ role_path }}/files/secrets.yml"
+    name: paperless_secrets
+  when: raw_secrets_file.stat.exists
+
+- name: Create temporary raw secret manifest
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/raw-secrets.yaml.j2"
+    dest: "/tmp/paperless-raw-secrets.yaml"
+    mode: '0600'
+  when: raw_secrets_file.stat.exists
+
+- name: Seal the secrets using kubeseal
+  ansible.builtin.shell: |
+    kubeseal --format=yaml < /tmp/paperless-raw-secrets.yaml > {{ role_path }}/files/sealedsecrets.yaml
+  when: raw_secrets_file.stat.exists
+  changed_when: true
+
+- name: Remove temporary raw secret file
+  ansible.builtin.file:
+    path: /tmp/paperless-raw-secrets.yaml
+    state: absent
+
+- name: Apply sealed secrets
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/sealedsecrets.yaml"
+
+- name: Render storage configuration
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/storage.yaml.j2"
+    dest: "/tmp/paperless-storage.yaml"
+    mode: '0644'
+
+- name: Apply storage configuration
+  kubernetes.core.k8s:
+    state: present
+    src: "/tmp/paperless-storage.yaml"
+
+- name: Remove temporary storage file
+  ansible.builtin.file:
+    path: /tmp/paperless-storage.yaml
+    state: absent
+
+- name: Render Paperless-ngx deployment
+  ansible.builtin.template:
+    src: "{{ role_path }}/templates/paperless.yaml.j2"
+    dest: "/tmp/paperless-deployment.yaml"
+    mode: '0644'
+
+- name: Apply Paperless-ngx deployment
+  kubernetes.core.k8s:
+    state: present
+    src: "/tmp/paperless-deployment.yaml"
+
+- name: Remove temporary deployment file
+  ansible.builtin.file:
+    path: /tmp/paperless-deployment.yaml
+    state: absent
+
+- name: Check if tunnel credentials are configured
+  ansible.builtin.set_fact:
+    tunnel_configured: "{{ paperless_secrets.tunnel_credentials is defined and paperless_secrets.tunnel_credentials | length > 0 }}"
+  when: raw_secrets_file.stat.exists
+
+- name: Apply Cloudflared tunnel configuration
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/cloudflared.yaml"
+  when: tunnel_configured | default(false)
+
+- name: Wait for PostgreSQL to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ paperless_namespace }}"
+    name: paperless-postgres
+  register: postgres_deployment
+  until: postgres_deployment.resources[0].status.readyReplicas | default(0) >= 1
+  retries: 30
+  delay: 10
+
+- name: Wait for Redis to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ paperless_namespace }}"
+    name: paperless-redis
+  register: redis_deployment
+  until: redis_deployment.resources[0].status.readyReplicas | default(0) >= 1
+  retries: 30
+  delay: 10
+
+- name: Wait for Paperless-ngx to be ready
+  kubernetes.core.k8s_info:
+    kind: Deployment
+    namespace: "{{ paperless_namespace }}"
+    name: paperless
+  register: paperless_deployment
+  until: paperless_deployment.resources[0].status.readyReplicas | default(0) >= 1
+  retries: 60
+  delay: 10
+
+- name: Display access information
+  ansible.builtin.debug:
+    msg: |
+      Paperless-ngx has been deployed successfully!
+
+      {% if tunnel_configured | default(false) %}
+      Access URL: https://{{ paperless_domain }}
+      {% else %}
+      Cloudflare tunnel not configured. For local access:
+        kubectl -n {{ paperless_namespace }} port-forward svc/paperless 8000:8000
+        Then visit: http://localhost:8000
+
+      To set up the Cloudflare tunnel later:
+        1. Create a tunnel: cloudflared tunnel create paperless-tunnel
+        2. Add the tunnel credentials to secrets.yml
+        3. Re-run this playbook
+      {% endif %}
+
+      Admin credentials:
+      - Username: {{ paperless_secrets.admin_user }}
+      - Password: {{ paperless_secrets.admin_password }}

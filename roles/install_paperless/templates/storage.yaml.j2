@@ -1,0 +1,105 @@
+---
+# NFS PersistentVolume for Paperless documents and data
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: paperless-nfs-pv
+  labels:
+    app.kubernetes.io/name: paperless
+    app.kubernetes.io/instance: paperless
+    app.kubernetes.io/part-of: documents
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/managed-by: ansible
+spec:
+  capacity:
+    storage: 500Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-paperless
+  nfs:
+    server: "{{ nfs_server }}"
+    path: "{{ nfs_path }}"
+---
+# NFS PersistentVolumeClaim for Paperless
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-nfs-pvc
+  namespace: "{{ paperless_namespace }}"
+  labels:
+    app.kubernetes.io/name: paperless
+    app.kubernetes.io/instance: paperless
+    app.kubernetes.io/part-of: documents
+    app.kubernetes.io/component: storage
+    app.kubernetes.io/managed-by: ansible
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: nfs-paperless
+  resources:
+    requests:
+      storage: 500Gi
+---
+# PostgreSQL PVC (local storage)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-postgres-pvc
+  namespace: "{{ paperless_namespace }}"
+  labels:
+    app.kubernetes.io/name: paperless-postgres
+    app.kubernetes.io/instance: paperless
+    app.kubernetes.io/part-of: documents
+    app.kubernetes.io/component: database
+    app.kubernetes.io/managed-by: ansible
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: "{{ paperless_postgres_size }}"
+---
+# Redis PVC (local storage)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: paperless-redis-pvc
+  namespace: "{{ paperless_namespace }}"
+  labels:
+    app.kubernetes.io/name: paperless-redis
+    app.kubernetes.io/instance: paperless
+    app.kubernetes.io/part-of: documents
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/managed-by: ansible
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: "{{ paperless_redis_size }}"
+{% if paperless_email_enabled | default(false) %}
+---
+# Proton Mail Bridge PVC (stores GPG keys and config)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: proton-bridge-pvc
+  namespace: "{{ paperless_namespace }}"
+  labels:
+    app.kubernetes.io/name: proton-bridge
+    app.kubernetes.io/instance: paperless
+    app.kubernetes.io/part-of: documents
+    app.kubernetes.io/component: email
+    app.kubernetes.io/managed-by: ansible
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: "{{ paperless_proton_bridge_size | default('1Gi') }}"
+{% endif %}

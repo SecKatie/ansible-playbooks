@@ -1,0 +1,50 @@
+---
+- name: Install iptables (required for kube-proxy)
+  ansible.builtin.apt:
+    name:
+      - iptables
+    state: present
+    update_cache: true
+
+- name: Check if k3s agent is running and healthy
+  ansible.builtin.systemd:
+    name: k3s-agent
+  register: k3s_agent_service
+  ignore_errors: true
+
+- name: Stop broken k3s-agent if not active
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: stopped
+  when: k3s_agent_service.status.ActiveState is defined and k3s_agent_service.status.ActiveState != 'active'
+  ignore_errors: true
+
+- name: Uninstall broken k3s if service not healthy
+  ansible.builtin.shell: /usr/local/bin/k3s-agent-uninstall.sh
+  when: k3s_agent_service.status.ActiveState is defined and k3s_agent_service.status.ActiveState != 'active'
+  ignore_errors: true
+
+- name: Check if k3s is installed
+  ansible.builtin.stat:
+    path: /usr/local/bin/k3s
+  register: k3s_binary
+
+- name: Install k3s agent with native snapshotter
+  ansible.builtin.shell: |
+    curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--snapshotter=native" K3S_URL={{ k3s_server_url }} K3S_TOKEN={{ k3s_token }} sh -
+  when: not k3s_binary.stat.exists
+  register: k3s_install
+
+- name: Wait for k3s-agent service to be active
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: started
+    enabled: true
+  register: k3s_agent_started
+  retries: 12
+  delay: 10
+  until: k3s_agent_started.status.ActiveState == 'active'
+
+- name: Display k3s agent status
+  ansible.builtin.debug:
+    msg: "k3s-agent service is {{ k3s_agent_started.status.ActiveState }}"
