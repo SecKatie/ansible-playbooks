@@ -402,11 +402,11 @@ spec:
         # Liveness probe with long initial delay to allow for sync
         livenessProbe:
           tcpSocket:
-            port: 1143
-          initialDelaySeconds: 300
-          periodSeconds: 60
+            port: 143
+          initialDelaySeconds: 60
+          periodSeconds: 30
           timeoutSeconds: 10
-          failureThreshold: 5
+          failureThreshold: 3
 {% endif %}
       volumes:
       - name: paperless-data

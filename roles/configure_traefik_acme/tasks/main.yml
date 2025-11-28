@@ -1,0 +1,62 @@
+---
+- name: Check if Cloudflare API token secret exists
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: cloudflare-api-token
+    namespace: kube-system
+  register: cf_secret
+
+- name: Apply sealed secret for Cloudflare API token
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/sealedsecrets.yaml"
+  when: cf_secret.resources | length == 0
+
+- name: Wait for Cloudflare secret to be unsealed
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: cloudflare-api-token
+    namespace: kube-system
+  register: cf_secret_check
+  until: cf_secret_check.resources | length > 0
+  retries: 12
+  delay: 5
+  when: cf_secret.resources | length == 0
+
+- name: Apply Traefik HelmChartConfig for ACME
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'traefik-config.yml.j2') | from_yaml }}"
+
+- name: Wait for Traefik to restart with new configuration
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: traefik
+    namespace: kube-system
+  register: traefik_deploy
+  until: >
+    traefik_deploy.resources | length > 0 and
+    traefik_deploy.resources[0].status.readyReplicas | default(0) == traefik_deploy.resources[0].spec.replicas
+  retries: 30
+  delay: 10
+
+- name: Display ACME configuration information
+  ansible.builtin.debug:
+    msg:
+      - "Traefik ACME configuration applied successfully!"
+      - ""
+      - "Configuration:"
+      - "   - Certificate resolver: {{ traefik_acme_resolver }}"
+      - "   - ACME email: {{ traefik_acme_email }}"
+      - "   - Domain: *.{{ traefik_acme_domain }}"
+      - ""
+      - "To use Let's Encrypt certs in your IngressRoutes, add:"
+      - "   tls:"
+      - "     certResolver: {{ traefik_acme_resolver }}"
+      - "     domains:"
+      - "       - main: {{ traefik_acme_domain }}"
+      - "         sans:"
+      - "           - '*.{{ traefik_acme_domain }}'"

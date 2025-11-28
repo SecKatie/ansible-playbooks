@@ -1,0 +1,63 @@
+---
+# =============================================================================
+# User Applications Playbook
+# =============================================================================
+# This playbook deploys end-user applications:
+#   - Jellyfin (media server)
+#   - Media Stack (Sonarr, Radarr, qBittorrent, Jackett)
+#   - Paperless-ngx (document management)
+#   - Plane (project management)
+#
+# Prerequisites:
+#   - vars/plane_secrets.yml must exist and be encrypted with ansible-vault
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-pass
+#
+#   # Deploy only Jellyfin
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags jellyfin
+#
+#   # Deploy only media stack
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags media
+#
+#   # Deploy only Paperless
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags paperless
+#
+#   # Deploy only Plane
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags plane --ask-vault-pass
+#
+# Tags:
+#   - applications: All user applications
+#   - apps: All user applications (alias)
+#   - jellyfin: Jellyfin media server
+#   - media_server: Jellyfin media server (alias)
+#   - media: Media management stack (Sonarr, Radarr, qBittorrent, Jackett)
+#   - sonarr: Sonarr TV management
+#   - radarr: Radarr movie management
+#   - qbittorrent: qBittorrent download client
+#   - jackett: Jackett indexer manager
+#   - paperless: Paperless-ngx document management
+#   - documents: Paperless-ngx document management (alias)
+#   - plane: Plane project management
+#   - project_management: Plane project management (alias)
+# =============================================================================
+
+- name: Deploy user applications
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [applications, apps]
+  vars_files:
+    - vars/plane_secrets.yml
+  roles:
+    - role: install_jellyfin
+      tags: [jellyfin, media_server]
+
+    - role: install_media
+      tags: [media, sonarr, radarr, qbittorrent, jackett]
+
+    - role: install_paperless
+      tags: [paperless, documents]
+
+    - role: install_plane
+      tags: [plane, project_management]

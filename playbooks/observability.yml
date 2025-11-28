@@ -1,0 +1,41 @@
+---
+# =============================================================================
+# Observability Stack Playbook
+# =============================================================================
+# This playbook deploys the complete observability and monitoring stack:
+#   - Victoria Metrics (Prometheus-compatible metrics storage)
+#   - Node Exporter (System metrics collection)
+#   - Grafana (Metrics visualization and dashboards)
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/observability.yml
+#
+#   # Deploy only Victoria Metrics
+#   ansible-playbook -i inventory/hosts.yml playbooks/observability.yml --tags victoria_metrics
+#
+#   # Deploy only Grafana
+#   ansible-playbook -i inventory/hosts.yml playbooks/observability.yml --tags grafana
+#
+# Tags:
+#   - observability: All observability components
+#   - monitoring: All monitoring components
+#   - victoria_metrics: Victoria Metrics deployment
+#   - prometheus: Prometheus-compatible components
+#   - node_exporter: Node Exporter DaemonSet
+#   - grafana: Grafana dashboard
+# =============================================================================
+
+- name: Deploy observability stack
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [observability, monitoring]
+  roles:
+    - role: install_victoria_metrics
+      tags: [victoria_metrics, prometheus]
+
+    - role: install_node_exporter
+      tags: [node_exporter]
+
+    - role: install_grafana
+      tags: [grafana]

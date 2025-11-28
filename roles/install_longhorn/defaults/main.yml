@@ -1,5 +1,5 @@
 ---
-longhorn_version: "1.9.2"
+longhorn_version: "1.10.1"
 longhorn_namespace: "longhorn-system"
 
 # Default settings

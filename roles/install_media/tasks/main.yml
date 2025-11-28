@@ -38,6 +38,11 @@
     state: present
     src: "{{ role_path }}/files/radarr-app.yaml"
 
+- name: Deploy ingress for Sonarr and Radarr
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/ingress.yaml"
+
 - name: Wait for downloads deployment to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1

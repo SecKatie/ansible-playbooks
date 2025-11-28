@@ -16,3 +16,12 @@ k8s_dashboard_release_name: "kubernetes-dashboard"
 # Port for port-forwarding access
 k8s_dashboard_local_port: 8443
 k8s_dashboard_service_port: 443
+
+# Ingress configuration
+k8s_dashboard_ingress_enabled: true
+k8s_dashboard_ingress_host: "k8s.corp.mulliken.net"
+k8s_dashboard_ingress_class: "traefik"
+
+# TLS configuration
+k8s_dashboard_tls_cert_resolver: "cloudflare"
+k8s_dashboard_tls_domain: "corp.mulliken.net"

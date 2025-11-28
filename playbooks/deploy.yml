@@ -1,0 +1,105 @@
+---
+# =============================================================================
+# Complete Infrastructure and Application Deployment Playbook
+# =============================================================================
+# This playbook orchestrates the deployment of the entire infrastructure by
+# importing modular playbooks for each component.
+#
+# Components:
+#   - Infrastructure: Raspberry Pi configuration, NFS support
+#   - K3s: K3s cluster agent configuration
+#   - Core: Storage (Longhorn), Security (Sealed Secrets), Networking (Traefik)
+#   - Observability: Victoria Metrics, Grafana, Node Exporter
+#   - Dashboards: Kubernetes Dashboard, Homepage
+#   - Applications: Jellyfin, Media stack, Paperless, Plane
+#
+# Usage:
+#   # Deploy everything
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --ask-vault-pass
+#
+#   # Deploy only specific components
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags infrastructure
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags observability
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags applications --ask-vault-pass
+#
+#   # Deploy specific applications
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags jellyfin
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags media
+#
+#   # Skip certain components
+#   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --skip-tags ipv6
+#
+# Available tags:
+#   - infrastructure: Base infrastructure setup (Pi config, NFS, IPv6)
+#   - k3s: K3s cluster configuration
+#   - core: Core Kubernetes components
+#   - storage: Storage solutions (Longhorn)
+#   - security: Security components (Kubeseal)
+#   - networking: Networking components (Traefik)
+#   - observability: Monitoring stack (Victoria Metrics, Grafana, Node Exporter)
+#   - dashboards: Dashboard applications (K8s Dashboard, Homepage)
+#   - applications: All user-facing applications
+#   - jellyfin: Jellyfin media server
+#   - media: Media management stack (Sonarr, Radarr, qBittorrent, Jackett)
+#   - paperless: Paperless-ngx document management
+#   - plane: Plane project management
+#
+# For more details on each component, see the individual playbook files:
+#   - playbooks/infrastructure.yml
+#   - playbooks/k3s.yml
+#   - playbooks/core.yml
+#   - playbooks/observability.yml
+#   - playbooks/dashboards.yml
+#   - playbooks/applications.yml
+# =============================================================================
+
+# Import modular playbooks
+- name: Deploy infrastructure
+  ansible.builtin.import_playbook: infrastructure.yml
+  tags: [infrastructure]
+
+- name: Deploy K3s cluster configuration
+  ansible.builtin.import_playbook: k3s.yml
+  tags: [k3s]
+
+- name: Deploy Kubernetes core components
+  ansible.builtin.import_playbook: core.yml
+  tags: [core]
+
+- name: Deploy observability stack
+  ansible.builtin.import_playbook: observability.yml
+  tags: [observability]
+
+- name: Deploy dashboards
+  ansible.builtin.import_playbook: dashboards.yml
+  tags: [dashboards]
+
+- name: Deploy applications
+  ansible.builtin.import_playbook: applications.yml
+  tags: [applications]
+
+# =============================================================================
+# Deployment Summary
+# =============================================================================
+
+- name: Display deployment summary
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  tags: [always]
+  tasks:
+    - name: Show deployment completion message
+      ansible.builtin.debug:
+        msg: |
+          ╔══════════════════════════════════════════════════════════════╗
+          ║             Deployment Complete!                             ║
+          ╚══════════════════════════════════════════════════════════════╝
+
+          Deployment finished at: {{ ansible_facts['date_time']['iso8601'] }}
+
+          Next steps:
+          - Verify deployments: kubectl get pods --all-namespaces
+          - Access dashboards via port-forward or ingress
+          - Review logs if any issues occurred
+
+          For troubleshooting, see: CLAUDE.md

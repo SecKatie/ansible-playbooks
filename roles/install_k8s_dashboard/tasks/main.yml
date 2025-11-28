@@ -1,22 +1,45 @@
 ---
 - name: Add Kubernetes Dashboard Helm repository
-  kubernetes.core.helm_repository:
-    name: "{{ k8s_dashboard_helm_repo_name }}"
-    repo_url: "{{ k8s_dashboard_helm_repo_url }}"
+  ansible.builtin.command:
+    cmd: helm repo add {{ k8s_dashboard_helm_repo_name }} {{ k8s_dashboard_helm_repo_url }}
+  register: repo_add
+  changed_when: "'has been added' in repo_add.stdout"
+  failed_when: repo_add.rc != 0 and 'already exists' not in repo_add.stderr
 
 - name: Update Helm repositories
   ansible.builtin.command:
     cmd: helm repo update
-  changed_when: true
+  changed_when: false
 
-- name: Deploy Kubernetes Dashboard using Helm
-  kubernetes.core.helm:
-    name: "{{ k8s_dashboard_release_name }}"
-    chart_ref: "{{ k8s_dashboard_helm_chart }}"
-    chart_version: "{{ k8s_dashboard_helm_chart_version }}"
-    release_namespace: "{{ k8s_dashboard_namespace }}"
-    create_namespace: true
-  register: helm_result
+- name: Check if Kubernetes Dashboard release exists
+  ansible.builtin.command:
+    cmd: helm status {{ k8s_dashboard_release_name }} -n {{ k8s_dashboard_namespace }}
+  register: helm_status
+  failed_when: false
+  changed_when: false
+
+- name: Install Kubernetes Dashboard using Helm
+  ansible.builtin.command:
+    cmd: >
+      helm install {{ k8s_dashboard_release_name }} {{ k8s_dashboard_helm_chart }}
+      --version {{ k8s_dashboard_helm_chart_version }}
+      --create-namespace
+      --namespace {{ k8s_dashboard_namespace }}
+      --timeout 10m
+      --wait
+  when: helm_status.rc != 0
+  register: helm_install
+
+- name: Upgrade Kubernetes Dashboard using Helm
+  ansible.builtin.command:
+    cmd: >
+      helm upgrade {{ k8s_dashboard_release_name }} {{ k8s_dashboard_helm_chart }}
+      --version {{ k8s_dashboard_helm_chart_version }}
+      --namespace {{ k8s_dashboard_namespace }}
+      --timeout 10m
+      --wait
+  when: helm_status.rc == 0
+  register: helm_upgrade
 
 - name: Wait for dashboard pods to be ready
   kubernetes.core.k8s_info:
@@ -38,6 +61,13 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'dashboard-admin.yml.j2') | from_yaml_all | list }}"
 
+- name: Create ingress for dashboard
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'ingress.yml.j2') | from_yaml_all | list }}"
+  when: k8s_dashboard_ingress_enabled | default(true)
+
 - name: Wait for admin token secret to be created
   kubernetes.core.k8s_info:
     api_version: v1
@@ -52,22 +82,22 @@
 - name: Display dashboard access information
   ansible.builtin.debug:
     msg:
-      - "🎉 Kubernetes Dashboard has been installed successfully using Helm!"
+      - "Kubernetes Dashboard has been installed successfully using Helm!"
       - ""
-      - "📋 Installation details:"
-      - "   • Namespace: {{ k8s_dashboard_namespace }}"
-      - "   • Helm release: {{ k8s_dashboard_release_name }}"
-      - "   • Pods ready: {{ pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length }}/{{ pod_info.resources | length }}"
+      - "Installation details:"
+      - "   - Namespace: {{ k8s_dashboard_namespace }}"
+      - "   - Helm release: {{ k8s_dashboard_release_name }}"
+      - "   - Pods ready: {{ pod_info.resources | selectattr('status.phase', 'equalto', 'Running') | list | length }}/{{ pod_info.resources | length }}"
       - ""
-      - "🔑 Admin token: {{ admin_token.resources[0].data.token | b64decode }}"
+      - "Admin token: {{ admin_token.resources[0].data.token | b64decode }}"
       - ""
-      - "🌐 Access methods:"
+      - "Access methods:"
+      - "   1. Ingress: https://{{ k8s_dashboard_ingress_host }}"
       - >-
-        1. Port-forward: kubectl -n {{ k8s_dashboard_namespace }}
+        2. Port-forward: kubectl -n {{ k8s_dashboard_namespace }}
         port-forward svc/{{ k8s_dashboard_release_name }}-kong-proxy
         {{ k8s_dashboard_local_port }}:{{ k8s_dashboard_service_port }}
-      - "   2. Then access: https://localhost:{{ k8s_dashboard_local_port }}"
+      - "      Then access: https://localhost:{{ k8s_dashboard_local_port }}"
       - ""
-      - "📖 Usage:"
-      - "   • Use the admin token above to log in"
-      - "   • Keep the port-forward running while using the dashboard"
+      - "Usage:"
+      - "   - Use the admin token above to log in"

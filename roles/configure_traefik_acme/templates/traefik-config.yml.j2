@@ -1,0 +1,25 @@
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    additionalArguments:
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.email={{ traefik_acme_email }}"
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.storage=/data/acme.json"
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.dnschallenge=true"
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.dnschallenge.provider=cloudflare"
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
+      - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.caserver={{ traefik_acme_server }}"
+    env:
+      - name: CF_DNS_API_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: cloudflare-api-token
+            key: api-token
+    persistence:
+      enabled: true
+      size: 128Mi
+      path: /data

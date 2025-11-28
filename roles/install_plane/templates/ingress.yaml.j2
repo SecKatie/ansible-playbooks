@@ -1,0 +1,62 @@
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: plane
+  namespace: {{ plane_namespace }}
+  labels:
+    app.kubernetes.io/name: plane
+    app.kubernetes.io/part-of: plane
+    app.kubernetes.io/managed-by: ansible
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # API routes
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/api`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-api
+          port: 8000
+    # Auth routes
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/auth`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-api
+          port: 8000
+    # Live collaboration
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/live`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-live
+          port: 3000
+    # Spaces (public pages)
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/spaces`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-space
+          port: 3000
+    # Admin panel (god-mode)
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/god-mode`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-admin
+          port: 3000
+    # File uploads (minio)
+    - match: Host(`{{ plane_domain }}`) && PathPrefix(`/uploads`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-minio
+          port: 9000
+    # Default - web frontend (must be last)
+    - match: Host(`{{ plane_domain }}`)
+      kind: Rule
+      services:
+        - name: {{ plane_release_name }}-web
+          port: 3000
+  tls:
+    certResolver: {{ plane_tls_cert_resolver }}
+    domains:
+      - main: {{ plane_tls_domain }}
+        sans:
+          - "*.{{ plane_tls_domain }}"

@@ -48,11 +48,11 @@ spec:
         - name: VPN_TYPE
           value: "wireguard"
         - name: WIREGUARD_ENDPOINT_IP
-          value: "67.213.209.119"
+          value: "45.134.140.130"
         - name: WIREGUARD_ENDPOINT_PORT
           value: "51820"
         - name: WIREGUARD_PUBLIC_KEY
-          value: "1JswEeh7qEEq0oy2sQBeqg+QjNkTJRsZ/N9/CN92SCs="
+          value: "nvyBkaEXHwyPBAm8spGB0TFzf2W5wPAl8EEuJ0t+bzs="
         - name: WIREGUARD_PRIVATE_KEY
           valueFrom:
             secretKeyRef:
@@ -95,21 +95,19 @@ spec:
             cpu: 500m
             memory: 512Mi
         livenessProbe:
-          httpGet:
-            path: /v1/publicip/ip
+          tcpSocket:
             port: 8000
-          initialDelaySeconds: 90
-          periodSeconds: 60
-          timeoutSeconds: 10
-          failureThreshold: 5
-        readinessProbe:
-          httpGet:
-            path: /v1/publicip/ip
-            port: 8000
-          initialDelaySeconds: 60
+          initialDelaySeconds: 30
           periodSeconds: 30
           timeoutSeconds: 5
-          failureThreshold: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
       # qBittorrent download client container
       - name: qbittorrent
         image: linuxserver/qbittorrent:4.6.7
@@ -129,10 +127,10 @@ spec:
         resources:
           requests:
             cpu: 50m
-            memory: 128Mi
+            memory: 64Mi
           limits:
-            cpu: 2000m
-            memory: 2Gi
+            cpu: 500m
+            memory: 256Mi
         volumeMounts:
         - name: qbittorrent-config
           mountPath: /config
@@ -169,10 +167,10 @@ spec:
         resources:
           requests:
             cpu: 10m
-            memory: 256Mi
+            memory: 128Mi
           limits:
             cpu: 500m
-            memory: 512Mi
+            memory: 256Mi
         volumeMounts:
         - name: jackett-config
           mountPath: /config
@@ -193,11 +191,11 @@ spec:
           value: "true"
         resources:
           requests:
-            cpu: 10m
-            memory: 128Mi
+            cpu: 50m
+            memory: 256Mi
           limits:
             cpu: 1000m
-            memory: 1Gi
+            memory: 512Mi
         livenessProbe:
           httpGet:
             path: /
@@ -227,11 +225,11 @@ spec:
           value: "America/New_York"
         resources:
           requests:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 50m
+            memory: 256Mi
           limits:
-            cpu: 2000m
-            memory: 2Gi
+            cpu: 1000m
+            memory: 1Gi
         volumeMounts:
         - name: sabnzbd-config
           mountPath: /config

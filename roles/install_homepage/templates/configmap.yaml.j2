@@ -1,0 +1,274 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homepage-config
+  namespace: {{ homepage_namespace }}
+  labels:
+    app.kubernetes.io/name: homepage
+    app.kubernetes.io/part-of: dashboard
+    app.kubernetes.io/managed-by: ansible
+data:
+  settings.yaml: |
+    title: {{ homepage_title | default('Home') }}
+    favicon: homepage.png
+    theme: dark
+    color: slate
+    background:
+      image: {{ homepage_background_image | default('/images/background.jpg') }}
+      blur: sm
+      opacity: 40
+    cardBlur: sm
+    providers:
+      longhorn:
+        url: http://longhorn-frontend.longhorn-system.svc.cluster.local
+    layout:
+      Entertainment:
+        style: row
+        columns: 4
+      Productivity:
+        style: row
+        columns: 2
+      Downloads:
+        style: row
+        columns: 3
+      Infrastructure:
+        style: row
+        columns: 2
+        Systems:
+          style: row
+          columns: 2
+        Networking:
+          style: row
+          columns: 2
+        Monitoring:
+          style: row
+          columns: 3
+
+  bookmarks.yaml: |
+    - AI:
+        - Claude:
+            - icon: claude-ai
+              href: https://claude.ai
+        - ChatGPT:
+            - icon: openai
+              href: https://chat.openai.com
+        - Gemini:
+            - icon: google-gemini
+              href: https://gemini.google.com
+        - Proton Lumo:
+            - icon: sh-proton-lumo
+              href: https://lumo.proton.me
+    - Productivity:
+        - Proton Mail:
+            - icon: sh-proton-mail
+              href: https://mail.proton.me
+        - Proton Calendar:
+            - icon: sh-proton-calendar
+              href: https://calendar.proton.me
+        - Proton Drive:
+            - icon: sh-proton-drive
+              href: https://drive.proton.me
+        - GitHub:
+            - icon: github
+              href: https://github.com
+    - Tools:
+        - CyberChef:
+            - icon: cyberchef
+              href: https://{{ homepage_cyberchef_host | default('gchq.github.io/CyberChef') }}
+        - Bitwarden:
+            - icon: bitwarden
+              href: https://vault.bitwarden.com
+    - Entertainment:
+        - YouTube:
+            - icon: youtube
+              href: https://youtube.com
+
+  services.yaml: |
+    - Entertainment:
+        - Jellyfin:
+            icon: jellyfin
+            href: https://{{ homepage_jellyfin_host | default('jellyfin.corp.mulliken.net') }}
+            description: Media server
+            namespace: jellyfin
+            app: jellyfin
+            widget:
+              type: jellyfin
+              url: http://jellyfin.jellyfin.svc.cluster.local:8096
+              key: "{% raw %}{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}{% endraw %}"
+              enableBlocks: true
+              enableNowPlaying: true
+        - YouTube:
+            icon: youtube
+            href: https://youtube.com
+            description: Video streaming
+        - Newsblur:
+            icon: newsblur
+            href: https://{{ homepage_newsblur_host | default('newsblur.com') }}
+            description: RSS reader
+        - Hacker News:
+            icon: hacker-news
+            href: https://news.ycombinator.com
+            description: Hacker News
+
+    - Productivity:
+        - Paperless:
+            icon: paperless-ngx
+            href: https://{{ homepage_paperless_host | default('paperless.mulliken.net') }}
+            description: Document management
+            namespace: paperless
+            app: paperless
+        - Plane:
+            icon: sh-plane
+            href: https://{{ homepage_plane_host | default('plane.corp.mulliken.net') }}
+            description: Project management
+            namespace: plane
+            app: plane-web
+
+    - Downloads:
+        - Radarr:
+            icon: radarr
+            href: https://{{ homepage_radarr_host | default('radarr.corp.mulliken.net') }}
+            description: Movies
+            namespace: sonarr
+            app: radarr
+            widget:
+              type: radarr
+              url: http://radarr.sonarr.svc.cluster.local:7878
+              key: "{% raw %}{{HOMEPAGE_VAR_RADARR_API_KEY}}{% endraw %}"
+        - Sonarr:
+            icon: sonarr
+            href: https://{{ homepage_sonarr_host | default('sonarr.corp.mulliken.net') }}
+            description: TV shows
+            namespace: sonarr
+            app: sonarr
+            widget:
+              type: sonarr
+              url: http://sonarr.sonarr.svc.cluster.local:8989
+              key: "{% raw %}{{HOMEPAGE_VAR_SONARR_API_KEY}}{% endraw %}"
+        - qBittorrent:
+            icon: qbittorrent
+            href: https://{{ homepage_qbittorrent_host | default('qbittorrent.corp.mulliken.net') }}
+            description: Torrent client
+            namespace: sonarr
+            app: downloads
+            widget:
+              type: qbittorrent
+              url: http://downloads.sonarr.svc.cluster.local:8080
+              username: "{% raw %}{{HOMEPAGE_VAR_QBITTORRENT_USERNAME}}{% endraw %}"
+              password: "{% raw %}{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}{% endraw %}"
+        - SABnzbd:
+            icon: sabnzbd
+            href: https://{{ homepage_sabnzbd_host | default('sabnzbd.corp.mulliken.net') }}
+            description: Usenet client
+            namespace: sonarr
+            app: downloads
+            widget:
+              type: sabnzbd
+              url: http://downloads.sonarr.svc.cluster.local:8085
+              key: "{% raw %}{{HOMEPAGE_VAR_SABNZBD_API_KEY}}{% endraw %}"
+        - Jackett:
+            icon: jackett
+            href: https://{{ homepage_jackett_host | default('jackett.corp.mulliken.net') }}
+            description: Indexer proxy
+            namespace: sonarr
+            app: downloads
+
+    - Infrastructure:
+        - Systems:
+            - Home Assistant:
+                icon: home-assistant
+                href: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
+                description: Home automation
+            - Synology NAS:
+                icon: synology
+                href: https://{{ homepage_synology_host | default('nas.mulliken.net') }}
+                description: Network storage
+        - Networking:
+            - UniFi:
+                icon: unifi
+                href: https://{{ homepage_unifi_host | default('unifi.corp.mulliken.net') }}
+                description: Network management
+                widget:
+                  type: unifi
+                  url: https://{{ homepage_unifi_host | default('unifi.corp.mulliken.net') }}
+                  username: "{% raw %}{{HOMEPAGE_VAR_UNIFI_USERNAME}}{% endraw %}"
+                  password: "{% raw %}{{HOMEPAGE_VAR_UNIFI_PASSWORD}}{% endraw %}"
+                  fields: ["wlan_users", "lan_users", "wlan_devices", "lan_devices"]
+            - Tailscale:
+                icon: tailscale
+                href: https://login.tailscale.com/admin/machines
+                description: VPN service
+        - Monitoring:
+            - Grafana:
+                icon: grafana
+                href: https://{{ homepage_grafana_host | default('grafana.corp.mulliken.net') }}
+                description: Dashboards
+                namespace: monitoring
+                app: grafana
+            - Kubernetes Dashboard:
+                icon: kubernetes-dashboard
+                href: https://{{ homepage_k8s_dashboard_host | default('k8s.corp.mulliken.net') }}
+                description: Cluster management
+                namespace: kubernetes-dashboard
+                app: kubernetes-dashboard-web
+            - Victoria Metrics:
+                icon: victoriametrics
+                href: https://{{ homepage_prometheus_host | default('prometheus.corp.mulliken.net') }}
+                description: Metrics
+                namespace: monitoring
+                app: victoria-metrics
+                widget:
+                  type: prometheus
+                  url: http://victoria-metrics.monitoring.svc.cluster.local:8428
+
+  widgets.yaml: |
+    - search:
+        provider: custom
+        url: https://kagi.com/search?q=
+        target: _blank
+        suggestionUrl: https://duckduckgo.com/ac/?q=
+        showSearchSuggestions: true
+    - kubernetes:
+        cluster:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+          label: "cluster"
+        nodes:
+          show: true
+          cpu: true
+          memory: true
+          showLabel: true
+    - longhorn:
+        expanded: true
+        total: true
+        labels: true
+        nodes: true
+    - unifi_console:
+        url: https://{{ homepage_unifi_host | default('unifi.corp.mulliken.net') }}
+        username: "{% raw %}{{HOMEPAGE_VAR_UNIFI_USERNAME}}{% endraw %}"
+        password: "{% raw %}{{HOMEPAGE_VAR_UNIFI_PASSWORD}}{% endraw %}"
+    - openmeteo:
+        label: Home
+        latitude: 35.316610442122936
+        longitude: -80.820451029149
+        timezone: America/New_York
+        units: imperial
+        cache: 5
+        format:
+          maximumFractionDigits: 1
+        hideErrors: true
+    - datetime:
+        text_size: xl
+        format:
+          dateStyle: long
+          timeStyle: short
+
+  docker.yaml: |
+    {}
+
+  kubernetes.yaml: |
+    mode: cluster
+    traefik: true

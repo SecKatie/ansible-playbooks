@@ -3,7 +3,7 @@
   ansible.builtin.shell: |
     grep -q "kind: SealedSecret" "{{ role_path }}/files/sealedsecrets.yaml"
   register: sealed_secret_check
-  ignore_errors: true
+  failed_when: false
   changed_when: false
 
 - name: Fail if sealed secret is not configured
@@ -19,19 +19,45 @@
       - "  5. Re-run this playbook"
   when: sealed_secret_check.rc != 0
 
-- name: Deploy Grafana manifests
+- name: Create Grafana namespace
   kubernetes.core.k8s:
     state: present
-    src: "{{ item }}"
-  with_fileglob:
-    - "{{ role_path }}/files/*.yaml"
+    definition: "{{ lookup('template', 'namespace.yaml.j2') | from_yaml }}"
+
+- name: Deploy Grafana storage
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'storage.yaml.j2') | from_yaml }}"
+
+- name: Deploy Grafana ConfigMaps
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'configmap.yaml.j2') | from_yaml_all | list }}"
+
+- name: Deploy Grafana sealed secrets
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/sealedsecrets.yaml"
+
+- name: Deploy Grafana application
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'grafana.yaml.j2') | from_yaml_all | list }}"
+
+- name: Deploy Grafana ingress
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
+  when: grafana_ingress_enabled | default(true)
 
 - name: Wait for Grafana deployment to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1
     kind: Deployment
     name: grafana
-    namespace: monitoring
+    namespace: "{{ grafana_namespace }}"
     wait: true
     wait_condition:
       type: Available
@@ -44,10 +70,10 @@
       - "Grafana has been deployed successfully!"
       - ""
       - "Access Grafana:"
-      - "  kubectl -n monitoring port-forward svc/grafana 3000:3000"
-      - "  URL: http://localhost:3000"
+      - "  Ingress: https://{{ grafana_ingress_host }}"
+      - "  Port-forward: kubectl -n {{ grafana_namespace }} port-forward svc/grafana 3000:3000"
       - ""
       - "Login with the admin credentials you configured in the sealed secret"
       - ""
       - "Prometheus datasource has been automatically configured"
-      - "Internal Prometheus URL: http://prometheus.monitoring.svc.cluster.local:9090"
+      - "Internal Prometheus URL: {{ grafana_prometheus_url }}"

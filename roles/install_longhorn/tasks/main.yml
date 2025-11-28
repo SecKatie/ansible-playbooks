@@ -6,15 +6,6 @@
     kind: Namespace
     state: present
 
-- name: Install open-iscsi on target nodes
-  ansible.builtin.apt:
-    name: open-iscsi
-    state: present
-  delegate_to: "{{ item }}"
-  loop: "{{ groups['new_k3s_agents'] | default([]) }}"
-  become: true
-  ignore_errors: true
-
 - name: Apply Longhorn manifests
   kubernetes.core.k8s:
     state: present
@@ -38,6 +29,19 @@
   retries: 30
   delay: 10
 
+- name: Wait for Longhorn admission webhook to be ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Endpoints
+    namespace: "{{ longhorn_namespace }}"
+    name: longhorn-admission-webhook
+  register: webhook_endpoints
+  until: >-
+    webhook_endpoints.resources | length > 0 and
+    webhook_endpoints.resources[0].subsets | default([]) | length > 0
+  retries: 30
+  delay: 10
+
 - name: Disable upgrade checker
   kubernetes.core.k8s:
     state: present
@@ -49,6 +53,10 @@
         namespace: "{{ longhorn_namespace }}"
       value: "{{ longhorn_upgrade_checker | string | lower }}"
   when: not longhorn_upgrade_checker
+  retries: 5
+  delay: 10
+  register: upgrade_checker_result
+  until: upgrade_checker_result is succeeded
 
 - name: Display Longhorn status
   ansible.builtin.debug:

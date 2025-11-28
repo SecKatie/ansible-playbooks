@@ -9,52 +9,122 @@ This repository contains Ansible playbooks and roles for deploying and managing 
 - SSH access to target hosts (for Raspberry Pi nodes)
 - Inventory file configured at `inventory/hosts.yml`
 
-## Available Playbooks
+## Main Playbooks
 
-### 1. Infrastructure Deploy Complete
-**File**: `playbooks/infrastructure-deploy-complete.yml`
+### 1. Deploy - Complete Infrastructure Deployment
+**File**: `playbooks/deploy.yml`
 
-Deploys the complete infrastructure including Raspberry Pi setup and Kubernetes applications.
+The primary playbook for deploying the entire infrastructure stack with granular control via tags. This playbook is modular and imports specialized playbooks for each component.
 
-**What it does**:
-- Configures Raspberry Pi nodes (iSCSI, cgroups)
-- Deploys Kubeseal for sealed secrets
-- Installs cert-manager for TLS certificate management
-- Installs observability stack (Prometheus, Node Exporter, Grafana)
-- Deploys Kubernetes Dashboard
-- Installs Jellyfin media server
-- Installs Kaneo project management with Cloudflare tunnel
-- Installs Media stack (Sonarr, Radarr, qBittorrent) with Mullvad VPN protection
+**Modular Structure**:
+The deploy playbook imports the following sub-playbooks:
+- `infrastructure.yml` - Raspberry Pi configuration, NFS support
+- `k3s.yml` - K3s cluster agent configuration
+- `core.yml` - Storage (Longhorn), Security (Sealed Secrets), Networking (Traefik)
+- `observability.yml` - Victoria Metrics, Grafana, Node Exporter
+- `dashboards.yml` - Kubernetes Dashboard, Homepage
+- `applications.yml` - Jellyfin, Media stack, Paperless, Plane
 
-**Usage**:
-```bash
-ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
-```
-
-### 2. Install Kubernetes Apps
-**File**: `playbooks/install_k8s_apps.yml`
-
-Installs Kubernetes applications on localhost (without Raspberry Pi setup).
-
-**What it does**:
-- Deploys Kubeseal
-- Installs cert-manager
-- Deploys Kubernetes Dashboard
+Each sub-playbook can also be run independently for targeted deployments.
 
 **Usage**:
 ```bash
-ansible-playbook playbooks/install_k8s_apps.yml
+# Deploy everything
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --ask-vault-pass
+
+# Deploy only infrastructure components
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags infrastructure
+
+# Deploy only observability stack
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags observability
+
+# Deploy specific application
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags jellyfin
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags media
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags paperless
+
+# Deploy multiple components
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags "infrastructure,core,applications" --ask-vault-pass
+
+# Run individual sub-playbooks
+ansible-playbook -i inventory/hosts.yml playbooks/infrastructure.yml
+ansible-playbook -i inventory/hosts.yml playbooks/core.yml
+ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-pass
 ```
 
-### 3. Maintenance - Update Packages
-**File**: `playbooks/maintenance-update-packages.yml`
+**Available Tags**:
+- `infrastructure` - Base infrastructure setup (Pi config, NFS)
+- `k3s` - K3s cluster configuration
+- `core` - All core Kubernetes components
+- `storage` - Storage solutions (Longhorn)
+- `security` - Security components (Sealed Secrets)
+- `networking` - Networking components (Traefik)
+- `observability` - Monitoring stack (Victoria Metrics, Grafana, Node Exporter)
+- `dashboards` - Dashboard applications (K8s Dashboard, Homepage)
+- `applications` - All user-facing applications
+- `jellyfin` - Jellyfin media server
+- `media` - Media management stack (Sonarr, Radarr, qBittorrent, Jackett)
+- `paperless` - Paperless-ngx document management
+- `plane` - Plane project management
 
-Updates packages on target hosts.
+### 2. Update - System Package Updates
+**File**: `playbooks/update.yml`
+
+Updates all packages on all systems with notification support.
 
 **Usage**:
 ```bash
-ansible-playbook -i inventory/hosts.yml playbooks/maintenance-update-packages.yml
+# Update all systems
+ansible-playbook -i inventory/hosts.yml playbooks/update.yml
+
+# Update specific group
+ansible-playbook -i inventory/hosts.yml playbooks/update.yml --limit all_raspberry_pi
+
+# Update with auto-reboot
+ansible-playbook -i inventory/hosts.yml playbooks/update.yml -e "auto_reboot=true"
 ```
+
+## Utility Playbooks
+
+Located in `playbooks/utilities/`:
+
+- **reboot.yml** - Reboot systems in a controlled manner
+- **monitoring.yml** - Monitor system health and send alerts
+- **test-notifications.yml** - Test ntfy notification system
+
+## Secrets Management
+
+**Best Practice:** Secrets should be stored in the playbook directory (not in roles) and encrypted with Ansible Vault.
+
+### Directory structure
+
+```
+playbooks/
+├── vars/
+│   ├── homepage_secrets.yml    # Encrypted with ansible-vault
+│   └── other_secrets.yml       # Encrypted with ansible-vault
+└── deploy.yml
+```
+
+### Creating secrets
+
+1. Create a vars file with your secrets:
+   ```bash
+   cat > playbooks/vars/my_secrets.yml <<EOF
+   my_api_key: "secret-value"
+   my_password: "another-secret"
+   EOF
+   ```
+
+2. Encrypt with Ansible Vault:
+   ```bash
+   ansible-vault encrypt playbooks/vars/my_secrets.yml
+   ```
+
+3. Run the playbook with vault password:
+   ```bash
+   ansible-playbook playbooks/deploy.yml --ask-vault-pass
+   ```
 
 ## Available Roles
 
@@ -62,7 +132,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/maintenance-update-packages.ym
 
 - **rpi_setup**: Configures Raspberry Pi nodes with iSCSI and cgroup settings
 - **install_kubeseal**: Deploys Sealed Secrets controller
-- **install_cert_manager**: Installs cert-manager for certificate management
+- **configure_traefik_acme**: Configures Traefik with Let's Encrypt ACME via Cloudflare DNS challenge
 - **install_prometheus**: Deploys Prometheus metrics server for monitoring
 - **install_node_exporter**: Deploys Node Exporter DaemonSet for system metrics
 - **install_grafana**: Deploys Grafana dashboard for observability and visualization
@@ -685,10 +755,13 @@ kubectl exec -n paperless deployment/paperless -c proton-bridge -- nc -zv localh
 - Always use the inventory file with `-i inventory/hosts.yml` for playbooks that target remote hosts
 - Roles are idempotent and safe to run multiple times
 - Check the PLAY RECAP at the end of each run to verify success
+- Old playbooks have been archived to `playbooks/archive/` and consolidated into `deploy.yml`
 
 ## Getting Help
 
 If you encounter issues not covered here, check:
+- Playbook documentation: `playbooks/README.md`
+- Inventory documentation: `inventory/README.md`
 - Ansible output for specific error messages
 - Kubernetes pod logs: `kubectl logs -n <namespace> <pod-name>`
 - Role documentation in `roles/<role-name>/README.md` (if available)

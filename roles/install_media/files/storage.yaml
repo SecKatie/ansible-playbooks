@@ -55,9 +55,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 2Gi
+      storage: 10Gi
 ---
 # PVC for qBittorrent config/metadata (local storage)
 apiVersion: v1
@@ -73,9 +74,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 2Gi
+      storage: 10Gi
 ---
 # PVC for Jackett config/metadata (local storage)
 apiVersion: v1
@@ -91,9 +93,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 1Gi
+      storage: 5Gi
 ---
 # PVC for Radarr config/metadata (local storage)
 apiVersion: v1
@@ -109,9 +112,10 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
-      storage: 2Gi
+      storage: 10Gi
 ---
 # PVC for SABnzbd config/metadata (local storage)
 apiVersion: v1
@@ -127,6 +131,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 5Gi

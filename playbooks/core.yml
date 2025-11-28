@@ -1,0 +1,47 @@
+---
+# =============================================================================
+# Kubernetes Core Components Playbook
+# =============================================================================
+# This playbook deploys core Kubernetes infrastructure components:
+#   - Storage: Longhorn distributed storage
+#   - Security: Sealed Secrets (kubeseal)
+#   - Networking: Traefik with ACME/Let's Encrypt
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yml playbooks/core.yml
+#
+#   # Deploy only storage
+#   ansible-playbook -i inventory/hosts.yml playbooks/core.yml --tags storage
+#
+#   # Deploy only security components
+#   ansible-playbook -i inventory/hosts.yml playbooks/core.yml --tags security
+#
+# Tags:
+#   - core: All core components
+#   - storage: Storage solutions
+#   - longhorn: Longhorn distributed storage
+#   - security: Security components
+#   - kubeseal: Sealed Secrets
+#   - networking: Networking components
+#   - traefik: Traefik ingress controller
+#   - acme: ACME/Let's Encrypt configuration
+#   - tls: TLS/SSL configuration
+# =============================================================================
+
+- name: Deploy Kubernetes core components
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags: [kubernetes, core]
+  roles:
+    # Storage
+    - role: install_longhorn
+      tags: [storage, longhorn]
+
+    # Security
+    - role: install_kubeseal
+      tags: [security, kubeseal]
+
+    # Networking
+    - role: configure_traefik_acme
+      tags: [networking, traefik, acme, tls]

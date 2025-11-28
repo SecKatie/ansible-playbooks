@@ -5,23 +5,47 @@
 # 3. ConfigMap (required by deployment)
 # 4. Prometheus deployment/service/RBAC
 # 5. kube-state-metrics (provides K8s cluster metrics)
-- name: Deploy Prometheus manifests
+# 6. Ingress (optional external access)
+
+- name: Create Prometheus namespace
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/{{ item }}"
-  loop:
-    - namespace.yaml
-    - storage.yaml
-    - configmap.yaml
-    - prometheus.yaml
-    - kube-state-metrics.yaml
+    definition: "{{ lookup('template', 'namespace.yaml.j2') | from_yaml }}"
+
+- name: Deploy Prometheus storage
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'storage.yaml.j2') | from_yaml }}"
+
+- name: Deploy Prometheus ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'configmap.yaml.j2') | from_yaml }}"
+
+- name: Deploy Prometheus application
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'prometheus.yaml.j2') | from_yaml_all | list }}"
+
+- name: Deploy kube-state-metrics
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'kube-state-metrics.yaml.j2') | from_yaml_all | list }}"
+
+- name: Deploy Prometheus ingress
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
+  when: prometheus_ingress_enabled | default(true)
 
 - name: Wait for Prometheus deployment to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1
     kind: Deployment
     name: prometheus
-    namespace: monitoring
+    namespace: "{{ prometheus_namespace }}"
     wait: true
     wait_condition:
       type: Available
@@ -33,7 +57,7 @@
     api_version: apps/v1
     kind: Deployment
     name: kube-state-metrics
-    namespace: monitoring
+    namespace: "{{ prometheus_namespace }}"
     wait: true
     wait_condition:
       type: Available
@@ -46,9 +70,9 @@
       - "Prometheus and kube-state-metrics have been deployed successfully!"
       - ""
       - "Access Prometheus:"
-      - "  kubectl -n monitoring port-forward svc/prometheus 9090:9090"
-      - "  URL: http://localhost:9090"
+      - "  Ingress: https://{{ prometheus_ingress_host }}"
+      - "  Port-forward: kubectl -n {{ prometheus_namespace }} port-forward svc/prometheus 9090:9090"
       - ""
-      - "Internal cluster access: http://prometheus.monitoring.svc.cluster.local:9090"
+      - "Internal cluster access: http://prometheus.{{ prometheus_namespace }}.svc.cluster.local:9090"
       - ""
       - "kube-state-metrics provides Kubernetes object metrics (pods, deployments, etc.)"
