@@ -20,9 +20,9 @@ The primary playbook for deploying the entire infrastructure stack with granular
 The deploy playbook imports the following sub-playbooks:
 - `infrastructure.yml` - Raspberry Pi configuration, NFS support
 - `k3s.yml` - K3s cluster agent configuration
-- `core.yml` - Storage (Longhorn), Security (Sealed Secrets), Networking (Traefik)
+- `core.yml` - Storage (Longhorn), Security (cert-manager), Networking (Traefik)
 - `observability.yml` - Victoria Metrics, Grafana, Node Exporter
-- `dashboards.yml` - Kubernetes Dashboard, Homepage
+- `dashboards.yml` - Kubernetes Dashboard, Headlamp, Homepage
 - `applications.yml` - Jellyfin, Media stack, Paperless, Plane
 
 Each sub-playbook can also be run independently for targeted deployments.
@@ -57,14 +57,15 @@ ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-p
 - `k3s` - K3s cluster configuration
 - `core` - All core Kubernetes components
 - `storage` - Storage solutions (Longhorn)
-- `security` - Security components (Sealed Secrets)
+- `security` - Security components (cert-manager)
 - `networking` - Networking components (Traefik)
 - `observability` - Monitoring stack (Victoria Metrics, Grafana, Node Exporter)
-- `dashboards` - Dashboard applications (K8s Dashboard, Homepage)
+- `dashboards` - Dashboard applications (K8s Dashboard, Headlamp, Homepage)
 - `applications` - All user-facing applications
 - `jellyfin` - Jellyfin media server
 - `media` - Media management stack (Sonarr, Radarr, qBittorrent, Jackett)
 - `paperless` - Paperless-ngx document management
+- `headlamp` - Headlamp Kubernetes web UI
 - `plane` - Plane project management
 
 ### 2. Update - System Package Updates
@@ -94,19 +95,32 @@ Located in `playbooks/utilities/`:
 
 ## Secrets Management
 
-**Best Practice:** Secrets should be stored in the playbook directory (not in roles) and encrypted with Ansible Vault.
+**Best Practice:** All secrets are stored in `playbooks/vars/` and encrypted with Ansible Vault.
 
 ### Directory structure
 
 ```
 playbooks/
 ├── vars/
-│   ├── homepage_secrets.yml    # Encrypted with ansible-vault
-│   └── other_secrets.yml       # Encrypted with ansible-vault
+│   ├── grafana_secrets.yml     # Grafana admin credentials
+│   ├── homepage_secrets.yml    # Homepage API keys
+│   ├── media_secrets.yml       # Mullvad VPN credentials
+│   ├── paperless_secrets.yml   # Paperless admin + DB credentials
+│   ├── plane_secrets.yml       # Plane configuration
+│   └── traefik_secrets.yml     # Cloudflare API token
 └── deploy.yml
 ```
 
-### Creating secrets
+### Vault files by playbook
+
+| Playbook | Vault Files |
+|----------|-------------|
+| `core.yml` | `traefik_secrets.yml` |
+| `observability.yml` | `grafana_secrets.yml` |
+| `dashboards.yml` | `homepage_secrets.yml` |
+| `applications.yml` | `plane_secrets.yml`, `media_secrets.yml`, `paperless_secrets.yml` |
+
+### Creating/editing secrets
 
 1. Create a vars file with your secrets:
    ```bash
@@ -121,9 +135,14 @@ playbooks/
    ansible-vault encrypt playbooks/vars/my_secrets.yml
    ```
 
-3. Run the playbook with vault password:
+3. Edit encrypted file:
    ```bash
-   ansible-playbook playbooks/deploy.yml --ask-vault-pass
+   ansible-vault edit playbooks/vars/my_secrets.yml
+   ```
+
+4. Run the playbook (uses vault password file if configured):
+   ```bash
+   ansible-playbook playbooks/deploy.yml
    ```
 
 ## Available Roles
@@ -131,19 +150,176 @@ playbooks/
 ### Infrastructure Roles
 
 - **rpi_setup**: Configures Raspberry Pi nodes with iSCSI and cgroup settings
-- **install_kubeseal**: Deploys Sealed Secrets controller
-- **configure_traefik_acme**: Configures Traefik with Let's Encrypt ACME via Cloudflare DNS challenge
-- **install_prometheus**: Deploys Prometheus metrics server for monitoring
+- **install_cert_manager**: Deploys cert-manager with Cloudflare DNS-01 ClusterIssuer for Let's Encrypt
+- **configure_traefik_acme**: Configures Traefik Gateway API with cert-manager wildcard certificate
+- **install_prometheus**: Deploys Prometheus (templates, standard Ingress with cert-manager)
+- **install_victoria_metrics**: Deploys Victoria Metrics (templates, standard Ingress with cert-manager)
 - **install_node_exporter**: Deploys Node Exporter DaemonSet for system metrics
-- **install_grafana**: Deploys Grafana dashboard for observability and visualization
-- **install_k8s_dashboard**: Deploys Kubernetes Dashboard with Helm
+- **install_grafana**: Deploys Grafana dashboard (templates, standard Ingress with cert-manager)
+- **install_k8s_dashboard**: Deploys Kubernetes Dashboard with Helm (IngressRoute for HTTPS backend)
+- **install_headlamp**: Deploys Headlamp Kubernetes UI (templates, standard Ingress with cert-manager)
+- **install_homepage**: Deploys Homepage dashboard (templates, standard Ingress with cert-manager)
 
 ### Application Roles
 
-- **install_jellyfin**: Deploys Jellyfin media server with Cloudflare tunnel support
-- **install_kaneo**: Deploys Kaneo project management with PostgreSQL and Cloudflare tunnel support
-- **install_media**: Deploys media stack (Sonarr, Radarr, qBittorrent, Jackett) with Mullvad VPN via gluetun sidecar
-- **install_paperless**: Deploys Paperless-ngx document management with PostgreSQL, Redis, and optional Proton Mail Bridge sidecar
+- **install_jellyfin**: Deploys Jellyfin media server (templates, standard Ingress + Cloudflare tunnel)
+- **install_media**: Deploys media stack - Sonarr, Radarr, qBittorrent, Jackett, SABnzbd (templates, standard Ingress with cert-manager, Mullvad VPN via gluetun)
+- **install_plane**: Deploys Plane project management (templates, standard Ingress with cert-manager)
+- **install_paperless**: Deploys Paperless-ngx document management (Cloudflare tunnel for external access)
+- **install_portainer**: Deploys Portainer container management (IngressRoute for HTTPS backend)
+
+## Role Structure
+
+Most roles follow a template-based structure for maximum configurability:
+
+```
+roles/install_example/
+├── defaults/
+│   └── main.yml           # Default variables (namespace, versions, resources, hosts)
+├── templates/
+│   ├── storage.yaml.j2    # PV/PVC definitions
+│   ├── app.yaml.j2        # Deployment and Service
+│   ├── secret.yaml.j2     # Kubernetes Secret (values from vault)
+│   ├── certificate.yaml.j2 # cert-manager Certificate
+│   └── ingress.yaml.j2    # Standard Kubernetes Ingress
+└── tasks/
+    └── main.yml           # Ansible tasks using templates
+```
+
+### Key Conventions
+
+- **Templates over static files**: Use Jinja2 templates in `templates/` for all Kubernetes resources
+- **Variables in defaults**: All configurable values go in `defaults/main.yml`
+- **Secrets via Ansible Vault**: Secret values come from `playbooks/vars/*_secrets.yml` (vault-encrypted)
+- **Standard Ingress**: Use `networking.k8s.io/v1` Ingress with cert-manager Certificate (not IngressRoute)
+- **Use `from_yaml_all` for multi-document templates**: `loop: "{{ lookup('template', 'file.yaml.j2') | from_yaml_all | list }}"`
+
+## Traefik Routing Configuration
+
+This cluster uses Traefik as the ingress controller with multiple routing options.
+
+### Routing Options Comparison
+
+| Option | Standard | TLS | HTTPS Backends | Portability |
+|--------|----------|-----|----------------|-------------|
+| **Ingress** | Kubernetes v1 | Via cert-manager Certificate | No | Best |
+| **HTTPRoute** | Gateway API | Via Gateway certificateRefs | Limited | Good |
+| **IngressRoute** | Traefik CRD | Via secretName | Yes (ServersTransport) | Traefik only |
+
+### When to Use Each
+
+**Use standard Ingress** (recommended for most services):
+- Maximum Kubernetes portability
+- Each service gets its own cert-manager Certificate
+- Used by: Jellyfin, Media stack, Headlamp, Homepage, Grafana, Prometheus, Victoria Metrics, Plane
+
+**Use IngressRoute** for:
+- Services with HTTPS backends that use self-signed certificates
+- When you need ServersTransport for `insecureSkipVerify`
+- Used by: Kubernetes Dashboard, Portainer
+
+**Use Cloudflare Tunnel** for:
+- Services that need external access outside the corp network
+- Used by: Jellyfin (external), Paperless, Kaneo
+
+### Standard Ingress with cert-manager (Recommended)
+
+For most services, use standard Kubernetes Ingress with a dedicated cert-manager Certificate:
+
+```yaml
+# Certificate - requests TLS cert from Let's Encrypt
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: my-app-tls
+  namespace: my-namespace
+spec:
+  secretName: my-app-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - my-app.corp.mulliken.net
+---
+# Standard Kubernetes Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app
+  namespace: my-namespace
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - my-app.corp.mulliken.net
+      secretName: my-app-tls
+  rules:
+    - host: my-app.corp.mulliken.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: my-app-service
+                port:
+                  number: 80
+```
+
+### Gateway API Limitation with HTTPS Backends
+
+Traefik's Gateway API implementation does not fully support HTTPS backend configuration:
+
+- **BackendTLSPolicy** is incomplete in Traefik (as of v3.x)
+- Service annotations like `traefik.io/service.serversscheme` don't work with Gateway API
+- The error manifests as: `parsing service annotations config: decoding labels: field not found, node: serversscheme`
+
+For HTTPS backends with self-signed certificates, use IngressRoute with ServersTransport:
+
+```yaml
+# ServersTransport for skipping TLS verification
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: my-transport
+  namespace: my-namespace
+spec:
+  insecureSkipVerify: true
+---
+# IngressRoute referencing the ServersTransport
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: my-app
+  namespace: my-namespace
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`my-app.corp.mulliken.net`)
+      kind: Rule
+      services:
+        - name: my-app-service
+          port: 443
+          serversTransport: my-transport
+  tls:
+    secretName: wildcard-corp-tls
+```
+
+### TLS Certificates with cert-manager
+
+The cluster uses cert-manager with Cloudflare DNS-01 challenge for Let's Encrypt certificates.
+
+**Key resources:**
+- `ClusterIssuer`: `letsencrypt-prod` (in cert-manager namespace)
+- `Certificate`: `wildcard-corp-tls` (in kube-system, referenced by Gateway)
+- Wildcard domains: `*.corp.mulliken.net`
+
+**Roles:**
+- `install_cert_manager` - Installs cert-manager and creates ClusterIssuer
+- `configure_traefik_acme` - Configures Traefik Gateway with cert-manager certificate
+
+**Note:** cert-manager uses external DNS servers (1.1.1.1, 8.8.8.8) for DNS propagation checks because CoreDNS cannot resolve external domains for the ACME challenge.
 
 ## Common Issues and Solutions
 
@@ -164,6 +340,19 @@ playbooks/
 **Error**: `/bin/sh: cloudflared: command not found`
 
 **Solution**: This is expected if cloudflared is not installed locally. The playbook will show manual setup instructions for creating the Cloudflare tunnel.
+
+### Issue: Gateway API HTTPRoute returns 500 for HTTPS backend
+
+**Error in Traefik logs**:
+```
+tls: failed to verify certificate: x509: cannot validate certificate for [IP] because it doesn't contain any IP SANs
+```
+or
+```
+parsing service annotations config: decoding labels: field not found, node: serversscheme
+```
+
+**Solution**: Traefik's Gateway API provider doesn't support HTTPS backends with self-signed certificates. Use IngressRoute with ServersTransport instead. See the "Traefik Routing Configuration" section above.
 
 ## Kubernetes Dashboard Access
 
@@ -190,41 +379,26 @@ The observability stack provides comprehensive monitoring and visualization for 
 
 ### Initial Setup
 
-Before deploying Grafana, you must create sealed secrets for the admin credentials:
+Before deploying Grafana, configure the admin credentials in the vault file:
 
-1. **Create the admin credentials secret**:
+1. **Edit the secrets file**:
    ```bash
-   # Create raw secret with your desired credentials
-   cat > /tmp/grafana-secrets.yaml <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: grafana-admin-credentials
-     namespace: monitoring
-   type: Opaque
-   stringData:
-     admin-user: admin
-     admin-password: your-secure-password-here
-   EOF
+   ansible-vault edit playbooks/vars/grafana_secrets.yml
    ```
 
-2. **Seal the secret**:
-   ```bash
-   kubeseal --format=yaml < /tmp/grafana-secrets.yaml > roles/install_grafana/files/sealedsecrets.yaml
+2. **Set your credentials**:
+   ```yaml
+   grafana_admin_user: "admin"
+   grafana_admin_password: "your-secure-password-here"
    ```
 
-3. **Clean up the temporary file**:
-   ```bash
-   rm /tmp/grafana-secrets.yaml
-   ```
-
-4. **Deploy the stack**:
+3. **Deploy the stack**:
    ```bash
    # Deploy only the observability stack
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags observability
+   ansible-playbook -i inventory/hosts.yml playbooks/observability.yml
 
-   # Or deploy the full infrastructure (which includes observability)
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
+   # Or deploy the full infrastructure
+   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml
    ```
 
 ### Accessing the Dashboards
@@ -236,7 +410,7 @@ Before deploying Grafana, you must create sealed secrets for the admin credentia
 kubectl -n monitoring port-forward svc/grafana 3000:3000
 
 # Access at: http://localhost:3000
-# Login with the credentials you configured in the sealed secret
+# Login with the credentials from playbooks/vars/grafana_secrets.yml
 ```
 
 #### Prometheus
@@ -313,11 +487,11 @@ Adjust these values based on your retention requirements and cluster size.
 
 ### Troubleshooting
 
-#### Grafana won't start - sealed secret error
+#### Grafana won't start - missing secret
 
 **Error**: Pod fails with secret mount errors
 
-**Solution**: Ensure you created and sealed the admin credentials (see Initial Setup above)
+**Solution**: Ensure `playbooks/vars/grafana_secrets.yml` exists and is encrypted with ansible-vault
 
 #### Prometheus not scraping targets
 
@@ -341,79 +515,30 @@ kubectl -n monitoring port-forward svc/prometheus 9090:9090
 
 To change Grafana admin credentials:
 
-1. Create new sealed secret (see Initial Setup)
-2. Apply the new secret: `kubectl apply -f roles/install_grafana/files/sealedsecrets.yaml`
+1. Edit the vault file: `ansible-vault edit playbooks/vars/grafana_secrets.yml`
+2. Re-run the playbook: `ansible-playbook -i inventory/hosts.yml playbooks/observability.yml --tags grafana`
 3. Restart Grafana: `kubectl rollout restart -n monitoring deployment/grafana`
-
-## Working with Sealed Secrets
-
-### What are Sealed Secrets?
-
-Sealed Secrets allow you to encrypt Kubernetes secrets so they can be safely stored in Git repositories. The sealed-secrets controller running in your cluster is the only thing that can decrypt them.
-
-### Installing kubeseal CLI
-
-The kubeseal CLI tool is required to create sealed secrets:
-
-```bash
-# macOS
-brew install kubeseal
-
-# Linux
-wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.33.1/kubeseal-0.33.1-linux-amd64.tar.gz
-tar -xvzf kubeseal-0.33.1-linux-amd64.tar.gz
-sudo install -m 755 kubeseal /usr/local/bin/kubeseal
-```
-
-### Creating Sealed Secrets
-
-1. **Create a raw secret YAML file** (never commit this to Git):
-   ```bash
-   cat > /tmp/my-secret.yaml <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: my-secret
-     namespace: my-namespace
-   type: Opaque
-   stringData:
-     username: "myuser"
-     password: "mypassword"
-   EOF
-   ```
-
-2. **Seal the secret**:
-   ```bash
-   kubeseal --format=yaml < /tmp/my-secret.yaml > my-sealed-secret.yaml
-   ```
-
-3. **Update the Ansible role** with the sealed secret:
-   - Copy the contents of `my-sealed-secret.yaml`
-   - Update the corresponding file in `roles/<role-name>/files/sealedsecrets.yaml`
-
-4. **Apply and verify**:
-   ```bash
-   # The sealed secret will be automatically unsealed by the controller
-   kubectl apply -f roles/<role-name>/files/sealedsecrets.yaml
-
-   # Verify the secret was created
-   kubectl get secret my-secret -n my-namespace
-   ```
-
-### Important Notes about Sealed Secrets
-
-- **The sealed-secrets controller must be running** in your cluster before you can unseal secrets
-- **Sealed secrets are cluster-specific** - they can only be decrypted by the cluster that has the matching private key
-- **Backup the controller's private key** if you need to restore the cluster:
-  ```bash
-  kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o yaml > sealed-secrets-key.yaml
-  ```
-- **Never commit raw secrets to Git** - only commit the sealed versions
-- **Updating secrets**: If you need to change a secret value, create a new sealed secret and apply it. The controller will update the underlying secret.
 
 ## Media Stack with Mullvad VPN
 
-The media role deploys Sonarr (TV), Radarr (movies), qBittorrent (downloads), and Jackett (indexers). All traffic is routed through Mullvad VPN using a gluetun sidecar container.
+The media role deploys Sonarr (TV), Radarr (movies), qBittorrent (downloads), Jackett (indexers), and SABnzbd (Usenet). Download traffic is routed through Mullvad VPN using a gluetun sidecar container.
+
+**Note:** The media stack uses the `sonarr` namespace for backward compatibility with existing PVCs.
+
+### Architecture
+
+- **Sonarr/Radarr**: PVR applications (no VPN, direct internet access)
+- **Downloads pod**: qBittorrent, Jackett, SABnzbd, FlareSolverr (all traffic through Mullvad VPN via gluetun)
+- **Storage**: NFS for media (shared with Jellyfin), Longhorn for configs
+
+### Ingress URLs
+
+All services are accessible via standard Ingress with Let's Encrypt TLS:
+- Sonarr: https://sonarr.corp.mulliken.net
+- Radarr: https://radarr.corp.mulliken.net
+- qBittorrent: https://qbittorrent.corp.mulliken.net
+- Jackett: https://jackett.corp.mulliken.net
+- SABnzbd: https://sabnzbd.corp.mulliken.net
 
 ### Initial Setup
 
@@ -423,82 +548,83 @@ The media role deploys Sonarr (TV), Radarr (movies), qBittorrent (downloads), an
    - Generate a new WireGuard key if needed
    - Note your private key and IP addresses
 
-2. **Create the sealed secret**:
+2. **Configure the vault file**:
    ```bash
-   # Create raw secret (replace with your actual values)
-   cat > /tmp/sonarr-vpn-secrets.yaml <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: media-vpn-secrets
-     namespace: media
-   type: Opaque
-   stringData:
-     WIREGUARD_PRIVATE_KEY: "your_private_key_here"
-     WIREGUARD_ADDRESSES: "10.x.x.x/32,fc00:bbbb:bbbb:bb01::x:xxxx/128"
-     SERVER_CITIES: "Atlanta GA"
-   EOF
+   ansible-vault edit playbooks/vars/media_secrets.yml
+   ```
 
-   # Seal it
-   kubeseal --format=yaml < /tmp/sonarr-vpn-secrets.yaml > roles/install_media/files/sealedsecrets.yaml
-
-   # Clean up
-   rm /tmp/sonarr-vpn-secrets.yaml
+   Set your credentials:
+   ```yaml
+   media_wireguard_private_key: "your_private_key_here"
+   media_wireguard_addresses: "10.x.x.x/32,fc00:bbbb:bbbb:bb01::x:xxxx/128"
    ```
 
 3. **Deploy the media stack**:
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
+   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags media
    ```
 
-### Accessing Sonarr
+### Accessing Services
+
+All services are available via Ingress or port-forward:
 
 ```bash
-# Port forward to access Sonarr
-kubectl -n media port-forward svc/sonarr 8989:8989
-
+# Sonarr (TV shows)
+kubectl -n sonarr port-forward svc/sonarr 8989:8989
 # Access at: http://localhost:8989
-```
 
-### Accessing qBittorrent
-
-qBittorrent runs as a shared download client. To access the web UI:
-
-```bash
-# Port forward to access qBittorrent
-kubectl -n media port-forward svc/qbittorrent 8080:8080
-
-# Access at: http://localhost:8080
-```
-
-### Accessing Jackett
-
-Jackett (indexer manager) provides indexer support. To access the web UI:
-
-```bash
-# Port forward to access Jackett
-kubectl -n media port-forward svc/jackett 9117:9117
-
-# Access at: http://localhost:9117
-```
-
-### Accessing Radarr
-
-```bash
-# Port forward to access Radarr
-kubectl -n media port-forward svc/radarr 7878:7878
-
+# Radarr (Movies)
+kubectl -n sonarr port-forward svc/radarr 7878:7878
 # Access at: http://localhost:7878
+
+# qBittorrent (Downloads)
+kubectl -n sonarr port-forward svc/downloads 8080:8080
+# Access at: http://localhost:8080
+
+# Jackett (Indexers)
+kubectl -n sonarr port-forward svc/downloads 9117:9117
+# Access at: http://localhost:9117
+
+# SABnzbd (Usenet)
+kubectl -n sonarr port-forward svc/downloads 8085:8085
+# Access at: http://localhost:8085
 ```
 
 ### Verifying VPN Connection
 
 ```bash
-# Check VPN public IP (from any media pod)
-kubectl exec -n media deployment/sonarr -c gluetun -- wget -qO- http://localhost:8000/v1/publicip/ip
+# Check VPN public IP
+kubectl exec -n sonarr deployment/downloads -c gluetun -- wget -qO- http://localhost:8000/v1/publicip/ip
 
 # Check VPN logs
-kubectl logs -n media deployment/sonarr -c gluetun
+kubectl logs -n sonarr deployment/downloads -c gluetun
+```
+
+## Jellyfin Media Server
+
+Jellyfin is deployed with dual access methods:
+- **Internal**: Standard Ingress at https://jellyfin.corp.mulliken.net (cert-manager TLS)
+- **External**: Cloudflare tunnel at https://jellyfin.mulliken.net
+
+### Configuration
+
+All settings are in `roles/install_jellyfin/defaults/main.yml`:
+- `jellyfin_ingress_host`: Internal domain (corp.mulliken.net)
+- `jellyfin_external_url`: External URL for Cloudflare tunnel
+- `jellyfin_nfs_server`/`jellyfin_nfs_path`: NFS media storage location
+
+### Accessing Jellyfin
+
+```bash
+# Via Ingress (internal)
+https://jellyfin.corp.mulliken.net
+
+# Via Cloudflare tunnel (external)
+https://jellyfin.mulliken.net
+
+# Via port-forward
+kubectl -n jellyfin port-forward svc/jellyfin 8096:8096
+# Access at: http://localhost:8096
 ```
 
 ### Configuring Sonarr for Jellyfin Integration
@@ -522,91 +648,16 @@ Recommended directory structure on NFS (`/volume2/media`):
 
 Jellyfin will automatically see new TV shows added to `/media/tv`.
 
-## Kaneo Project Management
-
-Kaneo is an open-source project management platform. The install_kaneo role deploys Kaneo with PostgreSQL database and a Cloudflare tunnel for external access.
-
-### Architecture
-
-- **PostgreSQL**: Database for storing projects, tasks, and user data
-- **Kaneo API**: Backend API server (port 1337)
-- **Kaneo Web**: Frontend web application (port 5173)
-- **Cloudflared**: Tunnel for secure external access
-
-### Initial Setup
-
-Before deploying Kaneo, you must create sealed secrets for database and authentication:
-
-1. **Create the secrets**:
-   ```bash
-   # Create raw secret (replace with your actual values)
-   cat > /tmp/kaneo-secrets.yaml <<EOF
-   apiVersion: v1
-   kind: Secret
-   metadata:
-     name: kaneo-secrets
-     namespace: kaneo
-   type: Opaque
-   stringData:
-     postgres-user: "kaneo"
-     postgres-password: "your-secure-password-here"
-     database-url: "postgresql://kaneo:your-secure-password-here@kaneo-postgres.kaneo.svc.cluster.local:5432/kaneo"
-     auth-secret: "your-jwt-secret-here-min-32-chars"
-   EOF
-   ```
-
-2. **Seal the secret**:
-   ```bash
-   kubeseal --format=yaml < /tmp/kaneo-secrets.yaml > roles/install_kaneo/files/sealedsecrets.yaml
-   ```
-
-3. **Clean up the temporary file**:
-   ```bash
-   rm /tmp/kaneo-secrets.yaml
-   ```
-
-4. **Deploy Kaneo**:
-   ```bash
-   # Deploy only Kaneo
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags kaneo
-
-   # Or deploy the full infrastructure
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml
-   ```
-
-### Accessing Kaneo
-
-After deployment, access Kaneo at https://kaneo.mulliken.net (or your configured domain).
-
-For local access:
-```bash
-# Port forward to access Kaneo Web
-kubectl -n kaneo port-forward svc/kaneo-web 5173:5173
-
-# Access at: http://localhost:5173
-```
-
-### Configuration
-
-The Kaneo URLs are configured in the ConfigMap at `roles/install_kaneo/files/kaneo.yaml`. Update these values to match your domain:
-
-```yaml
-data:
-  client-url: "https://kaneo.mulliken.net"
-  api-url: "https://kaneo.mulliken.net/api"
-```
-
 ### Updating Mullvad Credentials
 
 If you need to rotate your Mullvad VPN credentials:
 
 1. Generate new credentials from mullvad.net
-2. Create and seal new secret (see Initial Setup above)
-3. Re-run the playbook or apply directly:
+2. Edit the vault file: `ansible-vault edit playbooks/vars/media_secrets.yml`
+3. Re-run the playbook:
    ```bash
-   kubectl apply -f roles/install_media/files/sealedsecrets.yaml
-   kubectl rollout restart -n media deployment/sonarr
-   kubectl rollout restart -n media deployment/radarr
+   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags media
+   kubectl rollout restart -n sonarr deployment/downloads
    ```
 
 ## Paperless-ngx Document Management
@@ -623,16 +674,24 @@ Paperless-ngx is a document management system that scans, indexes, and archives 
 
 ### Initial Setup
 
-1. **Copy and configure secrets**:
+1. **Configure the vault file**:
    ```bash
-   cd roles/install_paperless/files
-   cp secrets.yml.example secrets.yml
-   # Edit secrets.yml with your credentials
+   ansible-vault edit playbooks/vars/paperless_secrets.yml
+   ```
+
+   Set your credentials:
+   ```yaml
+   paperless_postgres_user: "paperless"
+   paperless_postgres_password: "generate-secure-password"
+   paperless_admin_user: "admin"
+   paperless_admin_password: "your-admin-password"
+   paperless_admin_email: "admin@example.com"
+   paperless_secret_key: "generate-with-openssl-rand-base64-64"
    ```
 
 2. **Deploy Paperless**:
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags paperless
+   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags paperless
    ```
 
 ### Accessing Paperless
@@ -642,7 +701,7 @@ Paperless-ngx is a document management system that scans, indexes, and archives 
 kubectl -n paperless port-forward svc/paperless 8000:8000
 
 # Access at: http://localhost:8000
-# Login with the admin credentials from your secrets.yml
+# Login with the admin credentials from playbooks/vars/paperless_secrets.yml
 ```
 
 ### Proton Mail Bridge Setup (Optional)
@@ -682,14 +741,18 @@ Password: your-proton-password
 
 #### Step 3: Configure Secrets
 
-Add the bridge credentials to your `secrets.yml`:
+Add the bridge credentials to your vault file:
+
+```bash
+ansible-vault edit playbooks/vars/paperless_secrets.yml
+```
 
 ```yaml
 # Your Proton email address
-proton_email: "your-proton-email@protonmail.com"
+paperless_proton_email: "your-proton-email@protonmail.com"
 
 # The bridge-generated password from 'info' command
-proton_bridge_password: "bridge-generated-password-here"
+paperless_proton_bridge_password: "bridge-generated-password-here"
 ```
 
 #### Step 4: Enable Email and Redeploy
@@ -701,7 +764,7 @@ proton_bridge_password: "bridge-generated-password-here"
 
 2. Redeploy:
    ```bash
-   ansible-playbook -i inventory/hosts.yml playbooks/infrastructure-deploy-complete.yml --tags paperless
+   ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags paperless
    ```
 
 ### Configuring Email Rules in Paperless
@@ -756,6 +819,10 @@ kubectl exec -n paperless deployment/paperless -c proton-bridge -- nc -zv localh
 - Roles are idempotent and safe to run multiple times
 - Check the PLAY RECAP at the end of each run to verify success
 - Old playbooks have been archived to `playbooks/archive/` and consolidated into `deploy.yml`
+- Most roles now use Jinja2 templates instead of static YAML files for better configurability
+- Standard Kubernetes Ingress with cert-manager is preferred over Traefik IngressRoute for portability
+- The media stack uses namespace `sonarr` (not `media`) for backward compatibility with existing PVCs
+- All secrets are managed via Ansible Vault in `playbooks/vars/` - no more Sealed Secrets
 
 ## Getting Help
 

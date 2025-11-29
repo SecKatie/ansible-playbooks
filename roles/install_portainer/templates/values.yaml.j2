@@ -1,0 +1,52 @@
+---
+# Portainer Helm Chart Values
+# Reference: https://github.com/portainer/k8s/blob/master/charts/portainer/values.yaml
+
+# Replica count (Portainer requires exactly 1 replica)
+replicaCount: 1
+
+# Image configuration
+image:
+  repository: portainer/portainer-ce
+  tag: {{ portainer_helm_chart_version }}
+  pullPolicy: IfNotPresent
+
+# Service configuration
+service:
+  type: {{ portainer_service_type }}
+  httpPort: {{ portainer_service_http_port }}
+  httpsPort: {{ portainer_service_port }}
+
+# TLS configuration
+tls:
+  force: {{ portainer_enable_tls | lower }}
+
+# Resource limits
+resources:
+  requests:
+    cpu: {{ portainer_cpu_request }}
+    memory: {{ portainer_memory_request }}
+  limits:
+    cpu: {{ portainer_cpu_limit }}
+    memory: {{ portainer_memory_limit }}
+
+# Persistence configuration
+persistence:
+  enabled: true
+  size: {{ portainer_storage_size }}
+  storageClass: {{ portainer_storage_class }}
+
+# Feature flags
+feature:
+  flags: {% if portainer_enable_edge_compute %}["edgeCompute"]{% else %}[]{% endif %}
+
+# Service account
+serviceAccount:
+  name: portainer-sa-clusteradmin
+
+# RBAC - must be true if managing the local cluster
+localMgmt: true
+
+# Node selector and tolerations
+nodeSelector: {}
+tolerations: []

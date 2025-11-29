@@ -9,3 +9,7 @@ traefik_acme_domain: "corp.mulliken.net"
 
 # Certificate resolver name (referenced in IngressRoutes)
 traefik_acme_resolver: "cloudflare"
+
+# Traefik Dashboard configuration
+traefik_dashboard_enabled: true
+traefik_dashboard_host: "traefik.corp.mulliken.net"

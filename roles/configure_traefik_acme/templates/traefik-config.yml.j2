@@ -6,6 +6,39 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
+    # Enable Gateway API provider
+    providers:
+      kubernetesGateway:
+        enabled: true
+    # Install Gateway API CRDs and configure gateway
+    gateway:
+      enabled: true
+      listeners:
+        web:
+          port: 8000
+          protocol: HTTP
+          namespacePolicy:
+            from: All
+        websecure:
+          port: 8443
+          protocol: HTTPS
+          namespacePolicy:
+            from: All
+          certificateRefs:
+            - name: wildcard-corp-tls
+{% if traefik_dashboard_enabled | default(true) %}
+    # Enable Traefik Dashboard
+    api:
+      dashboard: true
+    ingressRoute:
+      dashboard:
+        enabled: true
+        matchRule: Host(`{{ traefik_dashboard_host }}`)
+        entryPoints:
+          - websecure
+        tls:
+          secretName: wildcard-corp-tls
+{% endif %}
     additionalArguments:
       - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.email={{ traefik_acme_email }}"
       - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.storage=/data/acme.json"

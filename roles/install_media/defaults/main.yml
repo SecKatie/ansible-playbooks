@@ -1,30 +1,93 @@
 ---
-# Default variables for install_sonarr role
-# These can be overridden in playbooks or inventory
+# Media Stack Configuration
+# Includes: Sonarr, Radarr, qBittorrent, Jackett, SABnzbd, FlareSolverr
 
-# Sonarr version
-sonarr_version: "4.0.11"
+# Namespace (using "sonarr" for backward compatibility with sealed secrets and existing PVCs)
+media_namespace: "sonarr"
 
-# Gluetun version
+# Common settings
+media_timezone: "America/New_York"
+media_puid: "1000"
+media_pgid: "1000"
+
+# Storage class for config volumes
+media_storage_class: "longhorn"
+
+# NFS storage configuration (shared with Jellyfin)
+media_nfs_server: "172.16.10.248"
+media_nfs_path: "/volume2/media"
+media_nfs_storage: "1Ti"
+
+# Config storage sizes
+sonarr_config_storage: "10Gi"
+radarr_config_storage: "10Gi"
+qbittorrent_config_storage: "10Gi"
+jackett_config_storage: "5Gi"
+sabnzbd_config_storage: "5Gi"
+
+# Ingress configuration
+media_ingress_enabled: true
+media_tls_secret_name: "media-tls"
+sonarr_ingress_host: "sonarr.corp.mulliken.net"
+radarr_ingress_host: "radarr.corp.mulliken.net"
+jackett_ingress_host: "jackett.corp.mulliken.net"
+qbittorrent_ingress_host: "qbittorrent.corp.mulliken.net"
+sabnzbd_ingress_host: "sabnzbd.corp.mulliken.net"
+
+# Container versions
+sonarr_version: "latest"
+radarr_version: "latest"
+qbittorrent_version: "4.6.7"
+jackett_version: "latest"
+sabnzbd_version: "latest"
+flaresolverr_version: "latest"
 gluetun_version: "v3.39.1"
 
-# Namespace
-sonarr_namespace: "sonarr"
+# Sonarr resources
+sonarr_cpu_request: "100m"
+sonarr_memory_request: "192Mi"
+sonarr_cpu_limit: "500m"
+sonarr_memory_limit: "512Mi"
 
-# Resource requests and limits
-sonarr_cpu_request: "200m"
-sonarr_memory_request: "512Mi"
-sonarr_cpu_limit: "2000m"
-sonarr_memory_limit: "2Gi"
+# Radarr resources
+radarr_cpu_request: "50m"
+radarr_memory_request: "192Mi"
+radarr_cpu_limit: "500m"
+radarr_memory_limit: "512Mi"
 
-gluetun_cpu_request: "100m"
-gluetun_memory_request: "128Mi"
+# qBittorrent resources
+qbittorrent_cpu_request: "50m"
+qbittorrent_memory_request: "64Mi"
+qbittorrent_cpu_limit: "500m"
+qbittorrent_memory_limit: "256Mi"
+
+# Jackett resources
+jackett_cpu_request: "10m"
+jackett_memory_request: "128Mi"
+jackett_cpu_limit: "500m"
+jackett_memory_limit: "256Mi"
+
+# SABnzbd resources
+sabnzbd_cpu_request: "50m"
+sabnzbd_memory_request: "256Mi"
+sabnzbd_cpu_limit: "1000m"
+sabnzbd_memory_limit: "1Gi"
+
+# FlareSolverr resources
+flaresolverr_cpu_request: "50m"
+flaresolverr_memory_request: "256Mi"
+flaresolverr_cpu_limit: "1000m"
+flaresolverr_memory_limit: "512Mi"
+
+# Gluetun VPN resources
+gluetun_cpu_request: "10m"
+gluetun_memory_request: "384Mi"
 gluetun_cpu_limit: "500m"
 gluetun_memory_limit: "512Mi"
 
-# Storage sizes
-sonarr_config_storage: "10Gi"
-sonarr_media_storage: "1Ti"
-
-# Timezone
-sonarr_timezone: "America/New_York"
+# Gluetun VPN configuration (Mullvad)
+gluetun_wireguard_endpoint_ip: "45.134.140.130"
+gluetun_wireguard_endpoint_port: "51820"
+gluetun_wireguard_public_key: "nvyBkaEXHwyPBAm8spGB0TFzf2W5wPAl8EEuJ0t+bzs="
+gluetun_firewall_input_ports: "8080,9117,8191,8085"
+gluetun_firewall_outbound_subnets: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"

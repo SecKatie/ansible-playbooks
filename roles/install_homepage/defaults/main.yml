@@ -16,6 +16,7 @@ homepage_memory_limit: 256Mi
 # Ingress configuration
 homepage_ingress_enabled: true
 homepage_ingress_host: homepage.corp.mulliken.net
+homepage_tls_secret_name: homepage-tls
 
 # Custom assets storage (icons and background images)
 homepage_icons_enabled: true
@@ -39,3 +40,10 @@ homepage_qbittorrent_password: ""
 homepage_sabnzbd_api_key: ""
 homepage_unifi_username: ""
 homepage_unifi_password: ""
+homepage_homeassistant_api_key: ""
+homepage_synology_username: ""
+homepage_synology_password: ""
+homepage_paperless_api_key: ""
+
+# Service hostnames
+homepage_headlamp_host: headlamp.corp.mulliken.net

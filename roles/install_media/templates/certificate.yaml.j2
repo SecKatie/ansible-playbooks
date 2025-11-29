@@ -1,0 +1,21 @@
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ media_tls_secret_name }}
+  namespace: {{ media_namespace }}
+  labels:
+    app.kubernetes.io/name: media
+    app.kubernetes.io/part-of: media
+    app.kubernetes.io/managed-by: ansible
+spec:
+  secretName: {{ media_tls_secret_name }}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - {{ sonarr_ingress_host }}
+    - {{ radarr_ingress_host }}
+    - {{ jackett_ingress_host }}
+    - {{ qbittorrent_ingress_host }}
+    - {{ sabnzbd_ingress_host }}

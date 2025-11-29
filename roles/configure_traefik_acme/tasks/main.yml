@@ -1,29 +1,26 @@
 ---
-- name: Check if Cloudflare API token secret exists
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    name: cloudflare-api-token
-    namespace: kube-system
-  register: cf_secret
-
-- name: Apply sealed secret for Cloudflare API token
+- name: Deploy Cloudflare API token secret
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/sealedsecrets.yaml"
-  when: cf_secret.resources | length == 0
+    definition: "{{ lookup('template', 'secret.yaml.j2') | from_yaml }}"
 
-- name: Wait for Cloudflare secret to be unsealed
+- name: Create wildcard certificate for Gateway
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+
+- name: Wait for certificate to be issued
   kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    name: cloudflare-api-token
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: wildcard-corp-tls
     namespace: kube-system
-  register: cf_secret_check
-  until: cf_secret_check.resources | length > 0
-  retries: 12
-  delay: 5
-  when: cf_secret.resources | length == 0
+  register: cert_status
+  until: >
+    cert_status.resources | length > 0 and
+    (cert_status.resources[0].status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0)
+  retries: 30
+  delay: 10
 
 - name: Apply Traefik HelmChartConfig for ACME
   kubernetes.core.k8s:

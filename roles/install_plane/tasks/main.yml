@@ -58,7 +58,27 @@
     path: "{{ plane_values_tempfile.path }}"
     state: absent
 
-- name: Create Traefik IngressRoute for Plane
+- name: Create TLS Certificate for Plane
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+  when: plane_ingress_enabled
+
+- name: Wait for TLS certificate to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: "{{ plane_tls_secret_name }}"
+    namespace: "{{ plane_namespace }}"
+  register: cert_info
+  until: >
+    cert_info.resources | length > 0 and
+    cert_info.resources[0].status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 30
+  delay: 10
+  when: plane_ingress_enabled
+
+- name: Create Plane Ingress
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"

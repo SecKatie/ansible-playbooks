@@ -1,6 +1,6 @@
 ---
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
   name: grafana
   namespace: {{ grafana_namespace }}
@@ -10,17 +10,19 @@ metadata:
     app.kubernetes.io/part-of: observability
     app.kubernetes.io/managed-by: ansible
 spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`{{ grafana_ingress_host }}`)
-      kind: Rule
-      services:
-        - name: grafana
-          port: 3000
+  ingressClassName: traefik
   tls:
-    certResolver: cloudflare
-    domains:
-      - main: corp.mulliken.net
-        sans:
-          - "*.corp.mulliken.net"
+    - hosts:
+        - {{ grafana_ingress_host }}
+      secretName: {{ grafana_tls_secret_name }}
+  rules:
+    - host: {{ grafana_ingress_host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

@@ -25,10 +25,7 @@ plane_domain: "plane.corp.mulliken.net"
 # Ingress configuration
 plane_ingress_enabled: true
 plane_ingress_class: "traefik"
-
-# TLS configuration for Traefik
-plane_tls_cert_resolver: "cloudflare"
-plane_tls_domain: "corp.mulliken.net"
+plane_tls_secret_name: "plane-tls"
 
 # Storage configuration
 plane_storage_class: "longhorn"

@@ -61,11 +61,11 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'dashboard-admin.yml.j2') | from_yaml_all | list }}"
 
-- name: Create ingress for dashboard
+- name: Create IngressRoute for dashboard
   kubernetes.core.k8s:
     state: present
     definition: "{{ item }}"
-  loop: "{{ lookup('template', 'ingress.yml.j2') | from_yaml_all | list }}"
+  loop: "{{ lookup('template', 'ingressroute.yaml.j2') | from_yaml_all | list }}"
   when: k8s_dashboard_ingress_enabled | default(true)
 
 - name: Wait for admin token secret to be created

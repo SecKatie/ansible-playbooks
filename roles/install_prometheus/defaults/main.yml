@@ -30,3 +30,4 @@ prometheus_retention_days: 30d
 # Ingress
 prometheus_ingress_enabled: true
 prometheus_ingress_host: prometheus.corp.mulliken.net
+prometheus_tls_secret_name: prometheus-tls

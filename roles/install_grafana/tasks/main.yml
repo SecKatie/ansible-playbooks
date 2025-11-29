@@ -1,24 +1,4 @@
 ---
-- name: Check if Grafana sealed secret is configured
-  ansible.builtin.shell: |
-    grep -q "kind: SealedSecret" "{{ role_path }}/files/sealedsecrets.yaml"
-  register: sealed_secret_check
-  failed_when: false
-  changed_when: false
-
-- name: Fail if sealed secret is not configured
-  ansible.builtin.fail:
-    msg:
-      - "ERROR: Grafana admin credentials sealed secret is not configured!"
-      - ""
-      - "Please create the sealed secret before deploying Grafana:"
-      - "  1. cp {{ role_path }}/files/secrets.yaml.example /tmp/grafana-secrets.yaml"
-      - "  2. Edit /tmp/grafana-secrets.yaml with your admin credentials"
-      - "  3. kubeseal --format=yaml < /tmp/grafana-secrets.yaml > {{ role_path }}/files/sealedsecrets.yaml"
-      - "  4. rm /tmp/grafana-secrets.yaml"
-      - "  5. Re-run this playbook"
-  when: sealed_secret_check.rc != 0
-
 - name: Create Grafana namespace
   kubernetes.core.k8s:
     state: present
@@ -35,10 +15,10 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'configmap.yaml.j2') | from_yaml_all | list }}"
 
-- name: Deploy Grafana sealed secrets
+- name: Deploy Grafana admin credentials
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/sealedsecrets.yaml"
+    definition: "{{ lookup('template', 'secret.yaml.j2') | from_yaml }}"
 
 - name: Deploy Grafana application
   kubernetes.core.k8s:
@@ -46,7 +26,27 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'grafana.yaml.j2') | from_yaml_all | list }}"
 
-- name: Deploy Grafana ingress
+- name: Create TLS Certificate for Grafana
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+  when: grafana_ingress_enabled | default(true)
+
+- name: Wait for TLS certificate to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: "{{ grafana_tls_secret_name }}"
+    namespace: "{{ grafana_namespace }}"
+  register: cert_info
+  until: >
+    cert_info.resources | length > 0 and
+    cert_info.resources[0].status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 30
+  delay: 10
+  when: grafana_ingress_enabled | default(true)
+
+- name: Deploy Grafana Ingress
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
@@ -73,7 +73,7 @@
       - "  Ingress: https://{{ grafana_ingress_host }}"
       - "  Port-forward: kubectl -n {{ grafana_namespace }} port-forward svc/grafana 3000:3000"
       - ""
-      - "Login with the admin credentials you configured in the sealed secret"
+      - "Login with the admin credentials from playbooks/vars/grafana_secrets.yml"
       - ""
       - "Prometheus datasource has been automatically configured"
       - "Internal Prometheus URL: {{ grafana_prometheus_url }}"

@@ -10,7 +10,7 @@
 #   - K3s: K3s cluster agent configuration
 #   - Core: Storage (Longhorn), Security (Sealed Secrets), Networking (Traefik)
 #   - Observability: Victoria Metrics, Grafana, Node Exporter
-#   - Dashboards: Kubernetes Dashboard, Homepage
+#   - Dashboards: Kubernetes Dashboard, Headlamp, Homepage
 #   - Applications: Jellyfin, Media stack, Paperless, Plane
 #
 # Usage:
@@ -37,11 +37,12 @@
 #   - security: Security components (Kubeseal)
 #   - networking: Networking components (Traefik)
 #   - observability: Monitoring stack (Victoria Metrics, Grafana, Node Exporter)
-#   - dashboards: Dashboard applications (K8s Dashboard, Homepage)
+#   - dashboards: Dashboard applications (K8s Dashboard, Headlamp, Homepage)
 #   - applications: All user-facing applications
 #   - jellyfin: Jellyfin media server
 #   - media: Media management stack (Sonarr, Radarr, qBittorrent, Jackett)
 #   - paperless: Paperless-ngx document management
+#   - headlamp: Headlamp Kubernetes web UI
 #   - plane: Plane project management
 #
 # For more details on each component, see the individual playbook files:

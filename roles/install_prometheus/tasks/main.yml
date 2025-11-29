@@ -34,7 +34,27 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'kube-state-metrics.yaml.j2') | from_yaml_all | list }}"
 
-- name: Deploy Prometheus ingress
+- name: Create TLS Certificate for Prometheus
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+  when: prometheus_ingress_enabled | default(true)
+
+- name: Wait for TLS certificate to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: "{{ prometheus_tls_secret_name }}"
+    namespace: "{{ prometheus_namespace }}"
+  register: cert_info
+  until: >
+    cert_info.resources | length > 0 and
+    cert_info.resources[0].status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 30
+  delay: 10
+  when: prometheus_ingress_enabled | default(true)
+
+- name: Deploy Prometheus Ingress
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"

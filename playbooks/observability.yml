@@ -7,6 +7,9 @@
 #   - Node Exporter (System metrics collection)
 #   - Grafana (Metrics visualization and dashboards)
 #
+# Prerequisites:
+#   - vars/grafana_secrets.yml must exist and be encrypted with ansible-vault
+#
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/observability.yml
 #
@@ -30,6 +33,8 @@
   connection: local
   gather_facts: false
   tags: [observability, monitoring]
+  vars_files:
+    - vars/grafana_secrets.yml
   roles:
     - role: install_victoria_metrics
       tags: [victoria_metrics, prometheus]

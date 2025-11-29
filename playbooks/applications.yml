@@ -49,6 +49,8 @@
   tags: [applications, apps]
   vars_files:
     - vars/plane_secrets.yml
+    - vars/media_secrets.yml
+    - vars/paperless_secrets.yml
   roles:
     - role: install_jellyfin
       tags: [jellyfin, media_server]

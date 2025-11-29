@@ -1,7 +1,7 @@
 ---
 - name: Create Jellyfin namespace
   kubernetes.core.k8s:
-    name: jellyfin
+    name: "{{ jellyfin_namespace }}"
     api_version: v1
     kind: Namespace
     state: present
@@ -16,38 +16,63 @@
 - name: Deploy Jellyfin storage components
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/storage.yaml"
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'storage.yaml.j2') | from_yaml_all | list }}"
 
 - name: Deploy Jellyfin application
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/jellyfin.yaml"
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'jellyfin.yaml.j2') | from_yaml_all | list }}"
 
-- name: Deploy Jellyfin ingress
+- name: Create TLS Certificate for Jellyfin
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/ingress.yaml"
+    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+  when: jellyfin_ingress_enabled | default(true)
+
+- name: Wait for TLS certificate to be ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: "{{ jellyfin_tls_secret_name }}"
+    namespace: "{{ jellyfin_namespace }}"
+  register: cert_info
+  until: >
+    cert_info.resources | length > 0 and
+    cert_info.resources[0].status.conditions | default([]) | selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: 30
+  delay: 10
+  when: jellyfin_ingress_enabled | default(true)
+
+- name: Deploy Jellyfin Ingress
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
+  when: jellyfin_ingress_enabled | default(true)
 
 - name: Setup Cloudflare tunnel
   ansible.builtin.include_role:
     name: setup_cloudflare_tunnel
   vars:
-    cf_tunnel_name: jellyfin-tunnel
-    cf_tunnel_namespace: jellyfin
-    cf_tunnel_secret_name: jellyfin-tunnel-credentials
+    cf_tunnel_name: "{{ jellyfin_cloudflare_tunnel_name }}"
+    cf_tunnel_namespace: "{{ jellyfin_namespace }}"
+    cf_tunnel_secret_name: "{{ jellyfin_cloudflare_tunnel_secret_name }}"
+  when: jellyfin_cloudflare_tunnel_enabled | default(true)
 
 - name: Deploy Cloudflare tunnel for Jellyfin
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/cloudflared.yaml"
-  when: cf_tunnel_configured | default(false)
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'cloudflared.yaml.j2') | from_yaml_all | list }}"
+  when: jellyfin_cloudflare_tunnel_enabled | default(true) and (cf_tunnel_configured | default(false))
 
 - name: Wait for Jellyfin deployment to be ready
   kubernetes.core.k8s_info:
     api_version: apps/v1
     kind: Deployment
     name: jellyfin
-    namespace: jellyfin
+    namespace: "{{ jellyfin_namespace }}"
     wait: true
     wait_condition:
       type: Available
@@ -59,31 +84,15 @@
     msg:
       - "Jellyfin has been deployed successfully!"
       - ""
-      - "Cloudflare tunnel configured:"
-      - "   Tunnel ID: {{ cf_tunnel_id }}"
-      - "   Tunnel URL: {{ cf_tunnel_id }}.cfargotunnel.com"
-      - "   Status: {{ 'Using existing tunnel' if cf_tunnel_status == 'existing' else 'Created new tunnel' }} 'jellyfin-tunnel'"
+      - "Internal access (corp network):"
+      - "   Ingress: https://{{ jellyfin_ingress_host }}"
+      - "   Service: http://jellyfin.{{ jellyfin_namespace }}.svc.cluster.local:8096"
       - ""
-      - "Next steps:"
-      - "   1. Create DNS record: jellyfin.mulliken.net -> {{ cf_tunnel_id }}.cfargotunnel.com"
-      - "   2. Access Jellyfin at https://jellyfin.mulliken.net"
+      - "External access (Cloudflare tunnel):"
+      - "   URL: {{ jellyfin_external_url }}"
+      - "   Tunnel: {{ jellyfin_cloudflare_tunnel_name }}"
+      - "   Status: {{ 'Configured' if (cf_tunnel_configured | default(false)) else 'Manual setup required' }}"
       - ""
-      - "Internal access: http://jellyfin.jellyfin.svc.cluster.local:8096"
-  when: cf_tunnel_configured | default(false)
-
-- name: Display deployment status (manual setup required)
-  ansible.builtin.debug:
-    msg:
-      - "Jellyfin has been deployed successfully!"
-      - ""
-      - "Manual tunnel setup required:"
-      - "   1. Create a Cloudflare tunnel named 'jellyfin-tunnel'"
-      - "   2. Create the tunnel credentials secret:"
-      - "      kubectl create secret generic jellyfin-tunnel-credentials \\"
-      - "        --from-file=credentials.json=/path/to/your/tunnel/credentials.json \\"
-      - "        --namespace=jellyfin"
-      - "   3. Configure DNS record for jellyfin.mulliken.net to point to your tunnel"
-      - "   4. Access Jellyfin at https://jellyfin.mulliken.net"
-      - ""
-      - "Internal access: http://jellyfin.jellyfin.svc.cluster.local:8096"
-  when: not (cf_tunnel_configured | default(false))
+      - "Storage:"
+      - "   Config: {{ jellyfin_storage_class }} ({{ jellyfin_config_storage }})"
+      - "   Media: NFS at {{ jellyfin_nfs_path }} ({{ jellyfin_nfs_storage }})"

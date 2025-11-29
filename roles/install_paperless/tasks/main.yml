@@ -11,51 +11,11 @@
           app.kubernetes.io/name: paperless
           app.kubernetes.io/managed-by: ansible
 
-- name: Check if raw secrets file exists
-  ansible.builtin.stat:
-    path: "{{ role_path }}/files/secrets.yml"
-  register: raw_secrets_file
-
-- name: Fail if secrets file doesn't exist
-  ansible.builtin.fail:
-    msg: |
-      Raw secrets file not found at {{ role_path }}/files/secrets.yml
-
-      Please create this file with your credentials. See secrets.yml.example for the format.
-
-      Quick start:
-        cp {{ role_path }}/files/secrets.yml.example {{ role_path }}/files/secrets.yml
-        # Edit the file with your values
-  when: not raw_secrets_file.stat.exists
-
-- name: Load raw secrets
-  ansible.builtin.include_vars:
-    file: "{{ role_path }}/files/secrets.yml"
-    name: paperless_secrets
-  when: raw_secrets_file.stat.exists
-
-- name: Create temporary raw secret manifest
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/raw-secrets.yaml.j2"
-    dest: "/tmp/paperless-raw-secrets.yaml"
-    mode: '0600'
-  when: raw_secrets_file.stat.exists
-
-- name: Seal the secrets using kubeseal
-  ansible.builtin.shell: |
-    kubeseal --format=yaml < /tmp/paperless-raw-secrets.yaml > {{ role_path }}/files/sealedsecrets.yaml
-  when: raw_secrets_file.stat.exists
-  changed_when: true
-
-- name: Remove temporary raw secret file
-  ansible.builtin.file:
-    path: /tmp/paperless-raw-secrets.yaml
-    state: absent
-
-- name: Apply sealed secrets
+- name: Deploy Paperless secrets
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/sealedsecrets.yaml"
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'secret.yaml.j2') | from_yaml_all | list }}"
 
 - name: Render storage configuration
   ansible.builtin.template:
@@ -91,8 +51,7 @@
 
 - name: Check if tunnel credentials are configured
   ansible.builtin.set_fact:
-    tunnel_configured: "{{ paperless_secrets.tunnel_credentials is defined and paperless_secrets.tunnel_credentials | length > 0 }}"
-  when: raw_secrets_file.stat.exists
+    tunnel_configured: "{{ paperless_tunnel_credentials is defined and paperless_tunnel_credentials | length > 0 }}"
 
 - name: Apply Cloudflared tunnel configuration
   kubernetes.core.k8s:
@@ -144,10 +103,10 @@
 
       To set up the Cloudflare tunnel later:
         1. Create a tunnel: cloudflared tunnel create paperless-tunnel
-        2. Add the tunnel credentials to secrets.yml
+        2. Add the tunnel credentials to playbooks/vars/paperless_secrets.yml
         3. Re-run this playbook
       {% endif %}
 
       Admin credentials:
-      - Username: {{ paperless_secrets.admin_user }}
-      - Password: {{ paperless_secrets.admin_password }}
+      - Username: {{ paperless_admin_user }}
+      - Password: {{ paperless_admin_password }}
