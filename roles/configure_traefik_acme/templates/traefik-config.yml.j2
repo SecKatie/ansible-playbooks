@@ -27,9 +27,10 @@ spec:
           certificateRefs:
             - name: wildcard-corp-tls
 {% if traefik_dashboard_enabled | default(true) %}
-    # Enable Traefik Dashboard
+    # Enable Traefik Dashboard and API
     api:
       dashboard: true
+      insecure: true
     ingressRoute:
       dashboard:
         enabled: true
@@ -38,8 +39,16 @@ spec:
           - websecure
         tls:
           secretName: wildcard-corp-tls
+    # Expose Traefik API port for Homepage widget
+    ports:
+      traefik:
+        expose:
+          default: true
 {% endif %}
     additionalArguments:
+{% if traefik_dashboard_enabled | default(true) %}
+      - "--api.insecure=true"
+{% endif %}
       - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.email={{ traefik_acme_email }}"
       - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.storage=/data/acme.json"
       - "--certificatesresolvers.{{ traefik_acme_resolver }}.acme.dnschallenge=true"

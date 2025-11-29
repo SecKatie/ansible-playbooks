@@ -23,60 +23,53 @@ data:
       longhorn:
         url: http://longhorn-frontend.longhorn-system.svc.cluster.local
     layout:
-      AI:
-        style: row
-        columns: 4
       Entertainment:
         style: row
-        columns: 2
+        columns: 4
       Productivity:
         style: row
-        columns: 3
-      Tools:
-        style: row
-        columns: 3
+        columns: 2
+        Proton:
+            style: row
+            columns: 2
+        AI:
+            style: row
+            columns: 2
+        Self-Hosted:
+            style: row
+            columns: 2
+        Tools:
+            style: row
+            columns: 2
       Downloads:
         style: row
         columns: 4
       Kubernetes:
         style: row
         columns: 2
+        Dashboards:
+            style: row
+            columns: 2
+        Networking:
+            style: row
+            columns: 1
+        Monitoring:
+            style: row
+            columns: 2
+        Storage:
+            style: row
+            columns: 1
       Network:
         style: row
         columns: 3
-      Monitoring:
+      Storage:
         style: row
-        columns: 2
-      Physical Infrastructure:
-        style: row
-        columns: 2
+        columns: 1
 
   bookmarks.yaml: |
     []
 
   services.yaml: |
-    - AI:
-        - Claude:
-            icon: claude-ai
-            href: https://claude.ai
-            description: AI assistant
-            ping: claude.ai
-        - ChatGPT:
-            icon: openai
-            href: https://chat.openai.com
-            description: OpenAI chat
-            ping: chat.openai.com
-        - Gemini:
-            icon: google-gemini
-            href: https://gemini.google.com
-            description: Google AI
-            ping: gemini.google.com
-        - Proton Lumo:
-            icon: sh-proton-lumo
-            href: https://lumo.proton.me
-            description: Proton AI
-            ping: lumo.proton.me
-
     - Entertainment:
         - Jellyfin:
             icon: jellyfin
@@ -105,75 +98,109 @@ data:
             href: https://news.ycombinator.com
             description: Tech news
             ping: news.ycombinator.com
-
     - Productivity:
-        - Paperless:
-            icon: paperless-ngx
-            href: https://{{ homepage_paperless_host | default('paperless.mulliken.net') }}
-            description: Document management
-            namespace: paperless
-            app: paperless
-            widget:
-              type: paperlessngx
-              url: http://paperless.paperless.svc.cluster.local:8000
-              key: "{% raw %}{{HOMEPAGE_VAR_PAPERLESS_API_KEY}}{% endraw %}"
-              fields: ["total", "inbox"]
-        - Plane:
-            icon: sh-plane
-            href: https://{{ homepage_plane_host | default('plane.corp.mulliken.net') }}
-            description: Project management
-            namespace: plane
-            podSelector: >-
-              app.name in (
-                plane-plane-app-web,
-                plane-plane-app-api,
-                plane-plane-app-space,
-                plane-plane-app-admin,
-                plane-plane-app-live,
-                plane-plane-app-worker,
-                plane-plane-app-beat-worker,
-                plane-plane-app-pgdb,
-                plane-plane-app-redis,
-                plane-plane-app-minio,
-                plane-plane-app-rabbitmq
-              )
-        - Proton Mail:
-            icon: sh-proton-mail
-            href: https://mail.proton.me
-            description: Secure email
-            ping: mail.proton.me
-        - Proton Calendar:
-            icon: sh-proton-calendar
-            href: https://calendar.proton.me
-            description: Calendar
-            ping: calendar.proton.me
-        - Proton Drive:
-            icon: sh-proton-drive
-            href: https://drive.proton.me
-            description: Cloud storage
-            ping: drive.proton.me
-        - GitHub:
-            icon: github
-            href: https://github.com
-            description: Code hosting
-            ping: github.com
+        - Proton:
+            - Proton Mail:
+                icon: sh-proton-mail
+                href: https://mail.proton.me
+                description: Secure email
+                ping: mail.proton.me
+            - Proton Calendar:
+                icon: sh-proton-calendar
+                href: https://calendar.proton.me
+                description: Calendar
+                ping: calendar.proton.me
+            - Proton Drive:
+                icon: sh-proton-drive
+                href: https://drive.proton.me
+                description: Cloud storage
+                ping: drive.proton.me
+            - Proton Lumo:
+                icon: sh-proton-lumo
+                href: https://lumo.proton.me
+                description: Proton AI
+                ping: lumo.proton.me
 
-    - Tools:
-        - CyberChef:
-            icon: cyberchef
-            href: https://{{ homepage_cyberchef_host | default('gchq.github.io/CyberChef') }}
-            description: Data toolkit
-            ping: {{ homepage_cyberchef_host | default('gchq.github.io') }}
-        - Bitwarden:
-            icon: bitwarden
-            href: https://vault.bitwarden.com
-            description: Password manager
-            ping: vault.bitwarden.com
-        - Excalidraw:
-            icon: excalidraw
-            href: https://excalidraw.com
-            description: Virtual whiteboard
-            ping: excalidraw.com
+        - AI:
+            - Claude:
+                icon: claude-ai
+                href: https://claude.ai
+                description: AI assistant
+                ping: claude.ai
+            - ChatGPT:
+                icon: openai
+                href: https://chat.openai.com
+                description: OpenAI chat
+                ping: chat.openai.com
+            - Gemini:
+                icon: google-gemini
+                href: https://gemini.google.com
+                description: Google AI
+                ping: gemini.google.com
+
+        - Self-Hosted:
+            - Paperless:
+                icon: paperless-ngx
+                href: https://{{ homepage_paperless_host | default('paperless.mulliken.net') }}
+                description: Document management
+                namespace: paperless
+                app: paperless
+                widget:
+                  type: paperlessngx
+                  url: http://paperless.paperless.svc.cluster.local:8000
+                  key: "{% raw %}{{HOMEPAGE_VAR_PAPERLESS_API_KEY}}{% endraw %}"
+                  fields: ["total", "inbox"]
+            - Plane:
+                icon: sh-plane
+                href: https://{{ homepage_plane_host | default('plane.corp.mulliken.net') }}
+                description: Project management
+                namespace: plane
+                podSelector: >-
+                  app.name in (
+                    plane-plane-app-web,
+                    plane-plane-app-api,
+                    plane-plane-app-space,
+                    plane-plane-app-admin,
+                    plane-plane-app-live,
+                    plane-plane-app-worker,
+                    plane-plane-app-beat-worker,
+                    plane-plane-app-pgdb,
+                    plane-plane-app-redis,
+                    plane-plane-app-minio,
+                    plane-plane-app-rabbitmq
+                  )
+            - Home Assistant:
+                icon: home-assistant
+                href: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
+                description: Home automation
+                ping: {{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}
+                widget:
+                  type: homeassistant
+                  url: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
+                  key: "{% raw %}{{HOMEPAGE_VAR_HOMEASSISTANT_API_KEY}}{% endraw %}"
+                  fields: ["people_home", "lights_on", "switches_on"]
+
+        - Tools:
+            - CyberChef:
+                icon: cyberchef
+                href: https://{{ homepage_cyberchef_host | default('gchq.github.io/CyberChef') }}
+                description: Data toolkit
+                ping: {{ homepage_cyberchef_host | default('gchq.github.io') }}
+            - Bitwarden:
+                icon: bitwarden
+                href: https://vault.bitwarden.com
+                description: Password manager
+                ping: vault.bitwarden.com
+            - Excalidraw:
+                icon: excalidraw
+                href: https://excalidraw.com
+                description: Virtual whiteboard
+                ping: excalidraw.com
+            - GitHub:
+                icon: github
+                href: https://github.com
+                description: Code hosting
+                ping: github.com
 
     - Downloads:
         - Radarr:
@@ -225,19 +252,66 @@ data:
             app: downloads
 
     - Kubernetes:
-        - Kubernetes Dashboard:
-            icon: kubernetes-dashboard
-            href: https://{{ homepage_k8s_dashboard_host | default('k8s.corp.mulliken.net') }}
-            description: Cluster management
-            namespace: kubernetes-dashboard
-            podSelector: >-
-              app.kubernetes.io/part-of=kubernetes-dashboard
-        - Headlamp:
-            icon: headlamp
-            href: https://{{ homepage_headlamp_host | default('headlamp.corp.mulliken.net') }}
-            description: Kubernetes web UI
-            namespace: headlamp
-            app: headlamp
+        - Dashboards:
+            - Kubernetes Dashboard:
+                icon: kubernetes-dashboard
+                href: https://{{ homepage_k8s_dashboard_host | default('k8s.corp.mulliken.net') }}
+                description: Cluster management
+                namespace: kubernetes-dashboard
+                podSelector: >-
+                  app.kubernetes.io/part-of=kubernetes-dashboard
+            - Headlamp:
+                icon: headlamp
+                href: https://{{ homepage_headlamp_host | default('headlamp.corp.mulliken.net') }}
+                description: Kubernetes web UI
+                namespace: headlamp
+                app: headlamp
+
+        - Networking:
+            - Traefik:
+                icon: traefik
+                href: https://{{ homepage_traefik_host | default('traefik.corp.mulliken.net') }}
+                description: Ingress controller
+                namespace: kube-system
+                app: traefik
+                widget:
+                  type: traefik
+                  url: http://traefik.kube-system.svc.cluster.local:8080
+
+        - Monitoring:
+            - Grafana:
+                icon: grafana
+                href: https://{{ homepage_grafana_host | default('grafana.corp.mulliken.net') }}
+                description: Dashboards
+                namespace: monitoring
+                app: grafana
+            - Victoria Metrics:
+                icon: victoriametrics
+                href: https://{{ homepage_prometheus_host | default('prometheus.corp.mulliken.net') }}
+                description: Metrics
+                namespace: monitoring
+                app: victoria-metrics
+                widget:
+                  type: prometheus
+                  url: http://victoria-metrics.monitoring.svc.cluster.local:8428
+
+        - Storage:
+            - Longhorn:
+                icon: longhorn
+                href: https://{{ homepage_longhorn_host | default('longhorn.corp.mulliken.net') }}
+                description: Distributed storage
+                namespace: longhorn-system
+                podSelector: >-
+                  app in (
+                    longhorn-ui,
+                    longhorn-manager,
+                    longhorn-driver-deployer,
+                    longhorn-csi-plugin,
+                    csi-attacher,
+                    csi-provisioner,
+                    csi-resizer,
+                    csi-snapshotter
+                  )
 
     - Network:
         - UniFi:
@@ -262,38 +336,11 @@ data:
             description: VPN service
             ping: login.tailscale.com
 
-    - Monitoring:
-        - Grafana:
-            icon: grafana
-            href: https://{{ homepage_grafana_host | default('grafana.corp.mulliken.net') }}
-            description: Dashboards
-            namespace: monitoring
-            app: grafana
-        - Victoria Metrics:
-            icon: victoriametrics
-            href: https://{{ homepage_prometheus_host | default('prometheus.corp.mulliken.net') }}
-            description: Metrics
-            namespace: monitoring
-            app: victoria-metrics
-            widget:
-              type: prometheus
-              url: http://victoria-metrics.monitoring.svc.cluster.local:8428
-
-    - Physical Infrastructure:
-        - Home Assistant:
-            icon: home-assistant
-            href: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
-            description: Home automation
-            ping: {{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}
-            widget:
-              type: homeassistant
-              url: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
-              key: "{% raw %}{{HOMEPAGE_VAR_HOMEASSISTANT_API_KEY}}{% endraw %}"
-              fields: ["people_home", "lights_on", "switches_on"]
+    - Storage:
         - Synology NAS:
             icon: synology
             href: https://{{ homepage_synology_host | default('nas.mulliken.net') }}
-            description: Network storage
+            description: Storage & DNS
             ping: {{ homepage_synology_host | default('nas.mulliken.net') }}
 
   widgets.yaml: |
