@@ -6,6 +6,9 @@ paperless_domain: "paperless.mulliken.net"
 nfs_server: "172.16.10.248"
 nfs_path: "/volume2/paperless"
 
+# Storage class for database/cache PVCs (longhorn for replicated storage)
+paperless_storage_class: "longhorn"
+
 # Storage sizes (for PostgreSQL and Redis)
 paperless_postgres_size: "5Gi"
 paperless_redis_size: "1Gi"
@@ -15,3 +18,7 @@ paperless_redis_size: "1Gi"
 # Requires proton_email and proton_bridge_password in secrets.yml
 paperless_email_enabled: true
 paperless_proton_bridge_size: "1Gi"
+
+# Node affinity - run on RHEL nodes (x86_64/amd64)
+paperless_node_selector:
+  kubernetes.io/arch: amd64

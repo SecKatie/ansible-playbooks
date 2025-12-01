@@ -85,6 +85,11 @@ gluetun_memory_request: "384Mi"
 gluetun_cpu_limit: "500m"
 gluetun_memory_limit: "512Mi"
 
+# Node scheduling for downloads pod
+# Use amd64 to target RHEL nodes (vs arm64 Raspberry Pi nodes)
+downloads_node_selector:
+  kubernetes.io/arch: "amd64"
+
 # Gluetun VPN configuration (Mullvad)
 gluetun_wireguard_endpoint_ip: "45.134.140.130"
 gluetun_wireguard_endpoint_port: "51820"

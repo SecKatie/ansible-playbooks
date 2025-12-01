@@ -23,14 +23,14 @@ The deploy playbook imports the following sub-playbooks:
 - `core.yml` - Storage (Longhorn), Security (cert-manager), Networking (Traefik)
 - `observability.yml` - Victoria Metrics, Grafana, Node Exporter
 - `dashboards.yml` - Kubernetes Dashboard, Headlamp, Homepage
-- `applications.yml` - Jellyfin, Media stack, Paperless, Plane
+- `applications.yml` - Jellyfin, Media stack, Paperless, Plane, Immich
 
 Each sub-playbook can also be run independently for targeted deployments.
 
 **Usage**:
 ```bash
 # Deploy everything
-ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml
 
 # Deploy only infrastructure components
 ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags infrastructure
@@ -42,14 +42,15 @@ ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags observabilit
 ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags jellyfin
 ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags media
 ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags paperless
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags immich
 
 # Deploy multiple components
-ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags "infrastructure,core,applications" --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml playbooks/deploy.yml --tags "infrastructure,core,applications"
 
 # Run individual sub-playbooks
 ansible-playbook -i inventory/hosts.yml playbooks/infrastructure.yml
 ansible-playbook -i inventory/hosts.yml playbooks/core.yml
-ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-pass
+ansible-playbook -i inventory/hosts.yml playbooks/applications.yml
 ```
 
 **Available Tags**:
@@ -67,6 +68,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-p
 - `paperless` - Paperless-ngx document management
 - `headlamp` - Headlamp Kubernetes web UI
 - `plane` - Plane project management
+- `immich` - Immich photo management
 
 ### 2. Update - System Package Updates
 **File**: `playbooks/update.yml`
@@ -104,6 +106,7 @@ playbooks/
 ├── vars/
 │   ├── grafana_secrets.yml     # Grafana admin credentials
 │   ├── homepage_secrets.yml    # Homepage API keys
+│   ├── immich_secrets.yml      # Immich PostgreSQL credentials
 │   ├── media_secrets.yml       # Mullvad VPN credentials
 │   ├── paperless_secrets.yml   # Paperless admin + DB credentials
 │   ├── plane_secrets.yml       # Plane configuration
@@ -118,7 +121,7 @@ playbooks/
 | `core.yml` | `traefik_secrets.yml` |
 | `observability.yml` | `grafana_secrets.yml` |
 | `dashboards.yml` | `homepage_secrets.yml` |
-| `applications.yml` | `plane_secrets.yml`, `media_secrets.yml`, `paperless_secrets.yml` |
+| `applications.yml` | `plane_secrets.yml`, `media_secrets.yml`, `paperless_secrets.yml`, `immich_secrets.yml` |
 
 ### Creating/editing secrets
 
@@ -166,6 +169,7 @@ playbooks/
 - **install_media**: Deploys media stack - Sonarr, Radarr, qBittorrent, Jackett, SABnzbd (templates, standard Ingress with cert-manager, Mullvad VPN via gluetun)
 - **install_plane**: Deploys Plane project management (templates, standard Ingress with cert-manager)
 - **install_paperless**: Deploys Paperless-ngx document management (Cloudflare tunnel for external access)
+- **install_immich**: Deploys Immich photo management with ML-powered search (templates, standard Ingress with cert-manager)
 - **install_portainer**: Deploys Portainer container management (IngressRoute for HTTPS backend)
 
 ## Role Structure

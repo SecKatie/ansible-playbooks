@@ -49,15 +49,7 @@
   retries: 30
   delay: 10
 
-- name: Get Cloudflare API token from kube-system
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    name: "{{ cert_manager_cloudflare_api_token_secret_name }}"
-    namespace: kube-system
-  register: cloudflare_secret
-
-- name: Copy Cloudflare API token to cert-manager namespace
+- name: Create Cloudflare API token secret
   kubernetes.core.k8s:
     state: present
     definition:
@@ -66,9 +58,13 @@
       metadata:
         name: "{{ cert_manager_cloudflare_api_token_secret_name }}"
         namespace: "{{ cert_manager_namespace }}"
+        labels:
+          app.kubernetes.io/name: cert-manager
+          app.kubernetes.io/component: cloudflare-dns
+          app.kubernetes.io/managed-by: ansible
       type: Opaque
-      data: "{{ cloudflare_secret.resources[0].data }}"
-  when: cloudflare_secret.resources | length > 0
+      stringData:
+        api-token: "{{ cloudflare_api_token }}"
 
 - name: Create ClusterIssuer for Let's Encrypt with Cloudflare DNS
   kubernetes.core.k8s:

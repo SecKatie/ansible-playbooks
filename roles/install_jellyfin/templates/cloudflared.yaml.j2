@@ -27,6 +27,14 @@ spec:
         app.kubernetes.io/component: tunnel
         app.kubernetes.io/managed-by: ansible
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
       containers:
         - name: cloudflared
           image: cloudflare/cloudflared:2025.11.1

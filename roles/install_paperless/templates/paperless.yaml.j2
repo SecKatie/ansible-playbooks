@@ -30,6 +30,20 @@ spec:
         app.kubernetes.io/component: database
         app.kubernetes.io/managed-by: ansible
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+{% if paperless_node_selector is defined %}
+      nodeSelector:
+{% for key, value in paperless_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
       containers:
       - name: postgres
         image: postgres:16-alpine
@@ -139,6 +153,20 @@ spec:
         app.kubernetes.io/component: cache
         app.kubernetes.io/managed-by: ansible
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+{% if paperless_node_selector is defined %}
+      nodeSelector:
+{% for key, value in paperless_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
       containers:
       - name: redis
         image: redis:7-alpine
@@ -231,6 +259,20 @@ spec:
         app.kubernetes.io/component: app
         app.kubernetes.io/managed-by: ansible
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+{% if paperless_node_selector is defined %}
+      nodeSelector:
+{% for key, value in paperless_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
       containers:
       - name: paperless
         image: ghcr.io/paperless-ngx/paperless-ngx:latest

@@ -30,17 +30,17 @@ data:
         style: row
         columns: 2
         Proton:
-            style: row
-            columns: 2
+          style: row
+          columns: 2
         AI:
-            style: row
-            columns: 2
+          style: row
+          columns: 2
         Self-Hosted:
-            style: row
-            columns: 2
+          style: row
+          columns: 2
         Tools:
-            style: row
-            columns: 2
+          style: row
+          columns: 2
       Downloads:
         style: row
         columns: 4
@@ -48,17 +48,17 @@ data:
         style: row
         columns: 2
         Dashboards:
-            style: row
-            columns: 2
+          style: row
+          columns: 2
         Networking:
-            style: row
-            columns: 1
+          style: row
+          columns: 1
         Monitoring:
-            style: row
-            columns: 2
-        Storage:
-            style: row
-            columns: 1
+          style: row
+          columns: 2
+        Kube Storage:
+          style: row
+          columns: 1
       Network:
         style: row
         columns: 3
@@ -139,6 +139,18 @@ data:
                 ping: gemini.google.com
 
         - Self-Hosted:
+            - Immich:
+                icon: immich
+                href: https://{{ homepage_immich_host | default('photos.corp.mulliken.net') }}
+                description: Photo management
+                namespace: immich
+                app: immich-server
+                widget:
+                  type: immich
+                  url: http://immich-server.immich.svc.cluster.local:2283
+                  key: "{% raw %}{{HOMEPAGE_VAR_IMMICH_API_KEY}}{% endraw %}"
+                  version: 2
+                  fields: ["photos", "videos", "storage"]
             - Paperless:
                 icon: paperless-ngx
                 href: https://{{ homepage_paperless_host | default('paperless.mulliken.net') }}
@@ -169,6 +181,7 @@ data:
                     plane-plane-app-minio,
                     plane-plane-app-rabbitmq
                   )
+                showStats: true
             - Home Assistant:
                 icon: home-assistant
                 href: http://{{ homepage_homeassistant_host | default('homeassistant.corp.mulliken.net') }}:8123
@@ -295,7 +308,7 @@ data:
                   type: prometheus
                   url: http://victoria-metrics.monitoring.svc.cluster.local:8428
 
-        - Storage:
+        - Kube Storage:
             - Longhorn:
                 icon: longhorn
                 href: https://{{ homepage_longhorn_host | default('longhorn.corp.mulliken.net') }}

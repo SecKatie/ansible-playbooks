@@ -26,7 +26,18 @@ spec:
             from: All
           certificateRefs:
             - name: wildcard-corp-tls
+    # Increase timeouts for large file uploads (photos/videos)
+    ports:
+      websecure:
+        transport:
+          respondingTimeouts:
+            readTimeout: 600s
+            writeTimeout: 600s
+            idleTimeout: 600s
 {% if traefik_dashboard_enabled | default(true) %}
+      traefik:
+        expose:
+          default: true
     # Enable Traefik Dashboard and API
     api:
       dashboard: true
@@ -39,11 +50,6 @@ spec:
           - websecure
         tls:
           secretName: wildcard-corp-tls
-    # Expose Traefik API port for Homepage widget
-    ports:
-      traefik:
-        expose:
-          default: true
 {% endif %}
     additionalArguments:
 {% if traefik_dashboard_enabled | default(true) %}
@@ -61,7 +67,6 @@ spec:
           secretKeyRef:
             name: cloudflare-api-token
             key: api-token
+    # Persistence disabled - using cert-manager for TLS certificates
     persistence:
-      enabled: true
-      size: 128Mi
-      path: /data
+      enabled: false

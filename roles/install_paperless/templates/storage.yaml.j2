@@ -42,7 +42,7 @@ spec:
     requests:
       storage: 500Gi
 ---
-# PostgreSQL PVC (local storage)
+# PostgreSQL PVC (Longhorn replicated storage)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -57,12 +57,12 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-path
+  storageClassName: "{{ paperless_storage_class }}"
   resources:
     requests:
       storage: "{{ paperless_postgres_size }}"
 ---
-# Redis PVC (local storage)
+# Redis PVC (Longhorn replicated storage)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -77,13 +77,13 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-path
+  storageClassName: "{{ paperless_storage_class }}"
   resources:
     requests:
       storage: "{{ paperless_redis_size }}"
 {% if paperless_email_enabled | default(false) %}
 ---
-# Proton Mail Bridge PVC (stores GPG keys and config)
+# Proton Mail Bridge PVC (Longhorn replicated storage - stores GPG keys and config)
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -98,7 +98,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: local-path
+  storageClassName: "{{ paperless_storage_class }}"
   resources:
     requests:
       storage: "{{ paperless_proton_bridge_size | default('1Gi') }}"

@@ -29,6 +29,12 @@ spec:
         app.kubernetes.io/component: downloads
         app.kubernetes.io/managed-by: ansible
     spec:
+{% if downloads_node_selector is defined and downloads_node_selector %}
+      nodeSelector:
+{% for key, value in downloads_node_selector.items() %}
+        {{ key }}: "{{ value }}"
+{% endfor %}
+{% endif %}
       containers:
         # Gluetun VPN container - all traffic routes through this
         - name: gluetun

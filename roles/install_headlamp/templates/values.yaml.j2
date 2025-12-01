@@ -54,3 +54,13 @@ rbac:
 # Persistence (disabled by default)
 persistentVolumeClaim:
   enabled: false
+
+# Node affinity - prefer to avoid scheduling on control-plane nodes
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: DoesNotExist

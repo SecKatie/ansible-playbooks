@@ -29,6 +29,14 @@ spec:
         app.kubernetes.io/component: pvr
         app.kubernetes.io/managed-by: ansible
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
       containers:
         - name: radarr
           image: linuxserver/radarr:{{ radarr_version }}

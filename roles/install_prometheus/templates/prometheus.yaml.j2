@@ -86,6 +86,14 @@ spec:
         app.kubernetes.io/managed-by: ansible
     spec:
       serviceAccountName: prometheus
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
       securityContext:
         fsGroup: 65534
         runAsUser: 65534

@@ -44,6 +44,8 @@ homepage_homeassistant_api_key: ""
 homepage_synology_username: ""
 homepage_synology_password: ""
 homepage_paperless_api_key: ""
+homepage_immich_api_key: ""
 
 # Service hostnames
+homepage_immich_host: photos.corp.mulliken.net
 homepage_headlamp_host: headlamp.corp.mulliken.net

@@ -3,12 +3,23 @@
 
 planeVersion: {{ plane_version }}
 
+# Global affinity - prefer to avoid scheduling on control-plane nodes
+affinity: &default-affinity
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: node-role.kubernetes.io/control-plane
+              operator: DoesNotExist
+
 # Standard labels for Homepage dashboard integration
 web:
   labels:
     app: plane-web
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: web
+  affinity: *default-affinity
 {% if plane_web_replicas is defined %}
   replicas: {{ plane_web_replicas }}
 {% endif %}
@@ -18,6 +29,7 @@ api:
     app: plane-api
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: api
+  affinity: *default-affinity
 {% if plane_api_replicas is defined %}
   replicas: {{ plane_api_replicas }}
 {% endif %}
@@ -33,6 +45,7 @@ space:
     app: plane-space
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: space
+  affinity: *default-affinity
 {% if plane_space_replicas is defined %}
   replicas: {{ plane_space_replicas }}
 {% endif %}
@@ -42,18 +55,21 @@ admin:
     app: plane-admin
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: admin
+  affinity: *default-affinity
 
 live:
   labels:
     app: plane-live
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: live
+  affinity: *default-affinity
 
 worker:
   labels:
     app: plane-worker
     app.kubernetes.io/name: plane
     app.kubernetes.io/component: worker
+  affinity: *default-affinity
 {% if plane_worker_replicas is defined %}
   replicas: {{ plane_worker_replicas }}
 {% endif %}

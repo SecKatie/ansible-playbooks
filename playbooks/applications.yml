@@ -7,9 +7,11 @@
 #   - Media Stack (Sonarr, Radarr, qBittorrent, Jackett)
 #   - Paperless-ngx (document management)
 #   - Plane (project management)
+#   - Immich (photo management)
 #
 # Prerequisites:
 #   - vars/plane_secrets.yml must exist and be encrypted with ansible-vault
+#   - vars/immich_secrets.yml must exist and be encrypted with ansible-vault
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --ask-vault-pass
@@ -26,6 +28,9 @@
 #   # Deploy only Plane
 #   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags plane --ask-vault-pass
 #
+#   # Deploy only Immich
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags immich --ask-vault-pass
+#
 # Tags:
 #   - applications: All user applications
 #   - apps: All user applications (alias)
@@ -40,6 +45,8 @@
 #   - documents: Paperless-ngx document management (alias)
 #   - plane: Plane project management
 #   - project_management: Plane project management (alias)
+#   - immich: Immich photo management
+#   - photos: Immich photo management (alias)
 # =============================================================================
 
 - name: Deploy user applications
@@ -51,6 +58,7 @@
     - vars/plane_secrets.yml
     - vars/media_secrets.yml
     - vars/paperless_secrets.yml
+    - vars/immich_secrets.yml
   roles:
     - role: install_jellyfin
       tags: [jellyfin, media_server]
@@ -63,3 +71,6 @@
 
     - role: install_plane
       tags: [plane, project_management]
+
+    - role: install_immich
+      tags: [immich, photos]
