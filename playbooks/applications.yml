@@ -8,6 +8,7 @@
 #   - Paperless-ngx (document management)
 #   - Plane (project management)
 #   - Immich (photo management)
+#   - Agate (Gemini protocol server)
 #
 # Prerequisites:
 #   - vars/plane_secrets.yml must exist and be encrypted with ansible-vault
@@ -31,6 +32,9 @@
 #   # Deploy only Immich
 #   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags immich --ask-vault-pass
 #
+#   # Deploy only Agate
+#   ansible-playbook -i inventory/hosts.yml playbooks/applications.yml --tags agate
+#
 # Tags:
 #   - applications: All user applications
 #   - apps: All user applications (alias)
@@ -47,6 +51,8 @@
 #   - project_management: Plane project management (alias)
 #   - immich: Immich photo management
 #   - photos: Immich photo management (alias)
+#   - agate: Agate Gemini protocol server
+#   - gemini: Agate Gemini protocol server (alias)
 # =============================================================================
 
 - name: Deploy user applications
@@ -74,3 +80,6 @@
 
     - role: install_immich
       tags: [immich, photos]
+
+    - role: install_agate
+      tags: [agate, gemini]
