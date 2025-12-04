@@ -194,6 +194,16 @@ data:
                   fields: ["people_home", "lights_on", "switches_on"]
 
         - Tools:
+            - Status Page:
+                icon: statping
+                href: https://status.mulliken.net
+                description: Service status
+                ping: status.mulliken.net
+            - ChangeDetection:
+                icon: sh-changedetection
+                href: https://lemonade.changedetection.io/fruitful-freedom
+                description: Website monitoring
+                ping: lemonade.changedetection.io
             - CyberChef:
                 icon: cyberchef
                 href: https://{{ homepage_cyberchef_host | default('gchq.github.io/CyberChef') }}

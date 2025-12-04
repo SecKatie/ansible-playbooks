@@ -8,7 +8,7 @@
 #   - Networking: Traefik with ACME/Let's Encrypt
 #
 # Prerequisites:
-#   - vars/traefik_secrets.yml must exist and be encrypted with ansible-vault
+#   - vars/cloudflare_secrets.yml must exist and be encrypted with ansible-vault
 #
 # Usage:
 #   ansible-playbook -i inventory/hosts.yml playbooks/core.yml
@@ -38,7 +38,7 @@
   gather_facts: false
   tags: [kubernetes, core]
   vars_files:
-    - vars/traefik_secrets.yml
+    - vars/cloudflare_secrets.yml
   roles:
     # Storage
     - role: install_longhorn

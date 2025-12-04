@@ -110,7 +110,7 @@ playbooks/
 │   ├── media_secrets.yml       # Mullvad VPN credentials
 │   ├── paperless_secrets.yml   # Paperless admin + DB credentials
 │   ├── plane_secrets.yml       # Plane configuration
-│   └── traefik_secrets.yml     # Cloudflare API token
+│   └── cloudflare_secrets.yml  # Cloudflare API token
 └── deploy.yml
 ```
 
@@ -118,7 +118,7 @@ playbooks/
 
 | Playbook | Vault Files |
 |----------|-------------|
-| `core.yml` | `traefik_secrets.yml` |
+| `core.yml` | `cloudflare_secrets.yml` |
 | `observability.yml` | `grafana_secrets.yml` |
 | `dashboards.yml` | `homepage_secrets.yml` |
 | `applications.yml` | `plane_secrets.yml`, `media_secrets.yml`, `paperless_secrets.yml`, `immich_secrets.yml` |

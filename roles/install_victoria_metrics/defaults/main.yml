@@ -5,11 +5,11 @@ victoria_metrics_namespace: monitoring
 # Victoria Metrics image
 victoria_metrics_image: victoriametrics/victoria-metrics:v1.106.1
 
-# Resource limits (much lighter than Prometheus)
-victoria_metrics_cpu_request: 50m
-victoria_metrics_cpu_limit: 500m
-victoria_metrics_memory_request: 128Mi
-victoria_metrics_memory_limit: 512Mi
+# Resource limits
+victoria_metrics_cpu_request: 100m
+victoria_metrics_cpu_limit: 1000m
+victoria_metrics_memory_request: 512Mi
+victoria_metrics_memory_limit: 2Gi
 
 # Storage
 victoria_metrics_storage_size: 20Gi
