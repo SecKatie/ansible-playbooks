@@ -40,7 +40,7 @@
       pvc: proton-bridge-pvc
       size: "{{ paperless_proton_bridge_size | default('1Gi') }}"
       component: email
-      enabled: {{ paperless_email_enabled | default(false) }}
+      enabled: "{{ paperless_email_enabled | default(false) | bool }}"
   loop_control:
     loop_var: pvc_item
   when: pvc_item.enabled | bool
