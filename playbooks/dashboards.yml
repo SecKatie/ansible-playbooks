@@ -44,14 +44,14 @@
   vars_files:
     - vars/homepage_secrets.yml
   roles:
-    - role: install_k8s_dashboard
+    - role: dashboard_kubernetes
       tags: [k8s_dashboard, kubernetes_dashboard]
 
-    - role: install_headlamp
+    - role: dashboard_headlamp
       tags: [headlamp]
 
-    - role: install_homepage
+    - role: dashboard_homepage
       tags: [homepage]
 
-    - role: install_personal_site
+    - role: dashboard_personal_site
       tags: [personal-site, personal]

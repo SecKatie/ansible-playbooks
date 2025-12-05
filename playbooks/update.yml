@@ -26,7 +26,7 @@
     - block:
         - name: Run system update
           include_role:
-            name: system_update
+            name: infra_system_update
 
         - name: Display completion message
           debug:

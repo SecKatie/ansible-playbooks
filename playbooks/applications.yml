@@ -66,19 +66,19 @@
     - vars/paperless_secrets.yml
     - vars/immich_secrets.yml
   roles:
-    - role: install_jellyfin
+    - role: app_jellyfin
       tags: [jellyfin, media_server]
 
-    - role: install_media
+    - role: app_media
       tags: [media, sonarr, radarr, qbittorrent, jackett]
 
-    - role: install_paperless
+    - role: app_paperless
       tags: [paperless, documents]
 
-    - role: install_plane
+    - role: app_plane
       tags: [plane, project_management]
 
-    - role: install_immich
+    - role: app_immich
       tags: [immich, photos]
 
     - role: install_agate

@@ -2,4 +2,4 @@
 - name: Reboot devices
   hosts: servers
   roles:
-    - reboot
+    - util_reboot

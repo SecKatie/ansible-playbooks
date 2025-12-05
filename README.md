@@ -135,13 +135,37 @@ ansible-playbook -i inventory playbooks/testing-notification-system.yml -K
 ## Roles / Playbooks at a Glance
 
 ### Roles
-| Role            | Purpose                                                        |
-|-----------------|----------------------------------------------------------------|
-| rpi_setup       | Installs & configures iSCSI, sets cgroup options, enables services |
-| k8s             | Deploys K8s Dashboard, Docmost, Ghost, Kubeseal                |
-| reboot          | Utility role that reboots Pis                                  |
-| dns_cname       | (optional) Creates Cloudflare CNAMEs via API                   |
-| lix, nix_darwin | (optional) Local Nix tooling/bootstrap                         |
+
+**Infrastructure**
+| Role                 | Purpose                                                        |
+|----------------------|----------------------------------------------------------------|
+| infra_rpi_setup      | Installs & configures iSCSI, sets cgroup options, enables services |
+| infra_k3s_agent      | Joins RHEL nodes to K3s cluster as agents                      |
+
+**Library Roles**
+| Role                 | Purpose                                                        |
+|----------------------|----------------------------------------------------------------|
+| common_k8s           | Reusable Kubernetes resource library (namespace, ingress, storage, etc.) |
+
+**Core & Observability**
+| Role                 | Purpose                                                        |
+|----------------------|----------------------------------------------------------------|
+| core_cert_manager    | Deploys cert-manager for TLS certificates                      |
+| core_traefik         | Configures Traefik ingress controller                          |
+| core_longhorn        | Deploys Longhorn distributed storage                           |
+| observability_*      | Victoria Metrics, Grafana, Node Exporter                       |
+
+**Applications & Dashboards**
+| Role                 | Purpose                                                        |
+|----------------------|----------------------------------------------------------------|
+| dashboard_*          | Kubernetes Dashboard, Headlamp, Homepage                       |
+| app_*                | Jellyfin, Media stack, Paperless, Plane, Immich                |
+
+**Utilities**
+| Role                 | Purpose                                                        |
+|----------------------|----------------------------------------------------------------|
+| util_reboot          | Reboots systems in a controlled manner                         |
+| util_ntfy_notify     | Sends notifications via ntfy                                   |
 
 ### Playbooks
 | Playbook                             | Purpose                                                        |
@@ -195,8 +219,9 @@ See `MOLECULE_TESTING.md` for detailed testing documentation.
 ## Extending the Stack
 
 1. Add a new role under `roles/` and reference it in the relevant playbook.
-2. Use variables and templates for environment-specific tweaks.
-3. Add Molecule tests for validation (templates available in existing roles).
+2. Use the `common_k8s` library role for common resources (namespace, ingress, storage, etc.) - see `roles/common_k8s/README.md`
+3. Use variables and templates for environment-specific tweaks.
+4. Add Molecule tests for validation (templates available in existing roles).
 
 ---
 

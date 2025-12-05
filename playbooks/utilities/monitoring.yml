@@ -11,7 +11,7 @@
   tasks:
     - name: Start monitoring notification
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "Starting system monitoring on {{ inventory_hostname }}"
         ntfy_title: "Monitoring Started"
@@ -41,7 +41,7 @@
 
     - name: Send disk usage alert
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: |
           🚨 High disk usage detected!
@@ -60,7 +60,7 @@
 
     - name: Send memory usage alert
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: |
           ⚠️ High memory usage detected!
@@ -76,7 +76,7 @@
 
     - name: Send service failure alert
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: |
           🔴 Critical service failure detected!
@@ -98,7 +98,7 @@
 
     - name: Send monitoring complete notification
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: |
           ✅ System monitoring completed
@@ -123,7 +123,7 @@
   handlers:
     - name: notify system issue
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "System issue detected on {{ inventory_hostname }}. Please investigate."
         ntfy_title: "System Issue"

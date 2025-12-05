@@ -19,7 +19,7 @@
   gather_facts: true
   tags: [k3s, k3s_agents]
   roles:
-    - role: k3s_agent
+    - role: infra_k3s_agent
       tags: [k3s_agent]
 
   post_tasks:

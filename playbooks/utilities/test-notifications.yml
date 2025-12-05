@@ -11,14 +11,14 @@
   tasks:
     - name: Send basic notification
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "Hello from Ansible! This is a basic test message."
         ntfy_debug: true
 
     - name: Send advanced notification with multiple features
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: |
           **Ansible Playbook Execution**
@@ -40,7 +40,7 @@
 
     - name: Send notification with email
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "This notification will also be sent via email if you have email configured for the topic."
         ntfy_title: "Email Notification Test"
@@ -52,7 +52,7 @@
 
     - name: Send delayed notification (10 seconds)
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "This message was delayed by 10 seconds!"
         ntfy_title: "Delayed Message"
@@ -62,7 +62,7 @@
 
     - name: Send notification with action button
       include_role:
-        name: ntfy_notify
+        name: util_ntfy_notify
       vars:
         ntfy_message: "Click the button below to visit the Ansible documentation."
         ntfy_title: "Action Button Test"

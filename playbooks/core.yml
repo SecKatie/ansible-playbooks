@@ -41,13 +41,13 @@
     - vars/cloudflare_secrets.yml
   roles:
     # Storage
-    - role: install_longhorn
+    - role: core_longhorn
       tags: [storage, longhorn]
 
     # Security
-    - role: install_cert_manager
+    - role: core_cert_manager
       tags: [security, cert-manager, tls]
 
     # Networking
-    - role: configure_traefik_acme
+    - role: core_traefik
       tags: [networking, traefik, acme, tls]

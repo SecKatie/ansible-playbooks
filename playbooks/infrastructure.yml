@@ -25,7 +25,7 @@
   become: true
   tags: [infrastructure, rpi]
   roles:
-    - role: rpi_setup
+    - role: infra_rpi_setup
       tags: [rpi_setup]
 
 - name: Install NFS support on Raspberry Pi nodes
