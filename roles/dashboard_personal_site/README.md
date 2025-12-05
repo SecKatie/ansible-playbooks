@@ -24,7 +24,7 @@ Deploys a static personal landing page built with Astro and MDX to Kubernetes wi
 
 3. **Tunnel credentials available locally**
    - Located at `~/.cloudflared/<tunnel-id>.json`
-   - The `setup_cloudflare_tunnel` role will create the Kubernetes secret
+   - The `util_cloudflare_tunnel` role will create the Kubernetes secret
 
 ## Usage
 

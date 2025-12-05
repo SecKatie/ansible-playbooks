@@ -1,6 +1,6 @@
-# setup_cloudflare_tunnel
+# util_cloudflare_tunnel
 
-Shared role for setting up Cloudflare tunnels. This role is designed to be included by other roles that need Cloudflare tunnel functionality.
+Utility role for setting up Cloudflare tunnels. This role is designed to be included by other roles that need Cloudflare tunnel functionality.
 
 ## Requirements
 
@@ -34,7 +34,7 @@ Include this role from another role:
 ```yaml
 - name: Setup Cloudflare tunnel
   ansible.builtin.include_role:
-    name: setup_cloudflare_tunnel
+    name: util_cloudflare_tunnel
   vars:
     cf_tunnel_name: my-app-tunnel
     cf_tunnel_namespace: my-app

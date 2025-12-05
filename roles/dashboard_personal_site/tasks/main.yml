@@ -15,7 +15,7 @@
 
 - name: Setup Cloudflare tunnel
   ansible.builtin.include_role:
-    name: setup_cloudflare_tunnel
+    name: util_cloudflare_tunnel
   vars:
     cf_tunnel_name: "{{ personal_site_cloudflare_tunnel_name }}"
     cf_tunnel_namespace: "{{ personal_site_namespace }}"

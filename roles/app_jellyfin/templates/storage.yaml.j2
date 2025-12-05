@@ -38,22 +38,3 @@ spec:
   resources:
     requests:
       storage: {{ jellyfin_nfs_storage }}
----
-# PVC for config/metadata (local storage)
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: jellyfin-config-pvc
-  namespace: {{ jellyfin_namespace }}
-  labels:
-    app.kubernetes.io/name: jellyfin
-    app.kubernetes.io/part-of: media
-    app.kubernetes.io/component: storage
-    app.kubernetes.io/managed-by: ansible
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: {{ jellyfin_storage_class }}
-  resources:
-    requests:
-      storage: {{ jellyfin_config_storage }}

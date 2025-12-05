@@ -1,23 +1,32 @@
 ---
 - name: Create Jellyfin namespace
-  kubernetes.core.k8s:
-    name: "{{ jellyfin_namespace }}"
-    api_version: v1
-    kind: Namespace
-    state: present
-    definition:
-      metadata:
-        labels:
-          app.kubernetes.io/part-of: media
-          app.kubernetes.io/managed-by: ansible
-        annotations:
-          app.kubernetes.io/description: "Jellyfin media server namespace"
+  include_role:
+    name: common_k8s
+    tasks_from: namespace
+  vars:
+    k8s_namespace: "{{ jellyfin_namespace }}"
+    k8s_labels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/part-of: media
 
-- name: Deploy Jellyfin storage components
+- name: Deploy NFS storage for media
   kubernetes.core.k8s:
     state: present
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'storage.yaml.j2') | from_yaml_all | list }}"
+
+- name: Create config PVC using common_k8s
+  include_role:
+    name: common_k8s
+    tasks_from: storage
+  vars:
+    k8s_namespace: "{{ jellyfin_namespace }}"
+    k8s_pvc_name: jellyfin-config-pvc
+    k8s_pvc_size: "{{ jellyfin_config_storage }}"
+    k8s_pvc_storage_class: "{{ jellyfin_storage_class }}"
+    k8s_labels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/part-of: media
 
 - name: Deploy Jellyfin application
   kubernetes.core.k8s:
@@ -25,10 +34,19 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'jellyfin.yaml.j2') | from_yaml_all | list }}"
 
-- name: Create TLS Certificate for Jellyfin
-  kubernetes.core.k8s:
-    state: present
-    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+- name: Create TLS certificate using common_k8s
+  include_role:
+    name: common_k8s
+    tasks_from: certificate
+  vars:
+    k8s_namespace: "{{ jellyfin_namespace }}"
+    k8s_cert_name: "{{ jellyfin_tls_secret_name }}"
+    k8s_cert_secret_name: "{{ jellyfin_tls_secret_name }}"
+    k8s_cert_dns_names:
+      - "{{ jellyfin_ingress_host }}"
+    k8s_labels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/part-of: media
   when: jellyfin_ingress_enabled | default(true)
 
 - name: Wait for TLS certificate to be ready
@@ -45,26 +63,44 @@
   delay: 10
   when: jellyfin_ingress_enabled | default(true)
 
-- name: Deploy Jellyfin Ingress
-  kubernetes.core.k8s:
-    state: present
-    definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
+- name: Create Ingress using common_k8s
+  include_role:
+    name: common_k8s
+    tasks_from: ingress
+  vars:
+    k8s_namespace: "{{ jellyfin_namespace }}"
+    k8s_ingress_name: jellyfin
+    k8s_ingress_host: "{{ jellyfin_ingress_host }}"
+    k8s_ingress_service_name: jellyfin
+    k8s_ingress_service_port: 8096
+    k8s_ingress_tls_secret: "{{ jellyfin_tls_secret_name }}"
+    k8s_labels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/part-of: media
   when: jellyfin_ingress_enabled | default(true)
 
 - name: Setup Cloudflare tunnel
   ansible.builtin.include_role:
-    name: setup_cloudflare_tunnel
+    name: util_cloudflare_tunnel
   vars:
     cf_tunnel_name: "{{ jellyfin_cloudflare_tunnel_name }}"
     cf_tunnel_namespace: "{{ jellyfin_namespace }}"
     cf_tunnel_secret_name: "{{ jellyfin_cloudflare_tunnel_secret_name }}"
   when: jellyfin_cloudflare_tunnel_enabled | default(true)
 
-- name: Deploy Cloudflare tunnel for Jellyfin
-  kubernetes.core.k8s:
-    state: present
-    definition: "{{ item }}"
-  loop: "{{ lookup('template', 'cloudflared.yaml.j2') | from_yaml_all | list }}"
+- name: Deploy Cloudflare tunnel using common_k8s
+  include_role:
+    name: common_k8s
+    tasks_from: cloudflare
+  vars:
+    k8s_namespace: "{{ jellyfin_namespace }}"
+    k8s_cloudflare_tunnel_name: "{{ jellyfin_cloudflare_tunnel_name }}"
+    k8s_cloudflare_external_hostname: "{{ jellyfin_external_url | regex_replace('^https?://', '') }}"
+    k8s_cloudflare_internal_service: "http://jellyfin.{{ jellyfin_namespace }}.svc.cluster.local:8096"
+    k8s_cloudflare_secret_name: "{{ jellyfin_cloudflare_tunnel_secret_name }}"
+    k8s_labels:
+      app.kubernetes.io/name: jellyfin
+      app.kubernetes.io/part-of: media
   when: jellyfin_cloudflare_tunnel_enabled | default(true) and (cf_tunnel_configured | default(false))
 
 - name: Wait for Jellyfin deployment to be ready
