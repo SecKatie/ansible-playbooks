@@ -225,6 +225,44 @@ See `MOLECULE_TESTING.md` for detailed testing documentation.
 
 ---
 
+## Migration to common_k8s Library
+
+The following roles can be migrated to use the `common_k8s` library to eliminate duplicate code:
+
+### Dashboard Roles
+- [ ] `dashboard_kubernetes` - Uses IngressRoute (keep as-is for HTTPS backend)
+- [ ] `dashboard_headlamp` - Migrate certificate, ingress, storage
+- [ ] `dashboard_homepage` - Migrate certificate, ingress, storage
+- [ ] `dashboard_personal_site` - Migrate ingress
+
+### Application Roles
+- [x] `app_jellyfin` - Migrate certificate, ingress, cloudflare, storage
+- [ ] `app_media` - Migrate certificate, ingress, storage
+- [ ] `app_paperless` - Migrate cloudflare, storage
+- [ ] `app_plane` - Migrate certificate, ingress, storage
+- [ ] `app_immich` - Migrate certificate, ingress, storage
+- [ ] `app_uptime_kuma` - Check if applicable
+
+### Observability Roles
+- [ ] `observability_grafana` - Migrate certificate, ingress, storage
+- [ ] `observability_victoria_metrics` - Migrate certificate, ingress, storage
+- [ ] `observability_node_exporter` - No common resources needed (DaemonSet only)
+
+### Migration Benefits
+- **Reduce codebase by ~500+ lines** (eliminate duplicate templates)
+- **Improve consistency** across all applications
+- **Easier maintenance** - fix bugs once, benefit everywhere
+- **Variable validation** - catch configuration errors early
+
+### Migration Steps
+1. Identify templates that can be replaced (certificate, ingress, storage, cloudflare)
+2. Update role's `tasks/main.yml` to use `include_role` with `common_k8s`
+3. Delete redundant template files
+4. Test the role to ensure functionality
+5. Mark checkbox above as complete
+
+---
+
 ## License
 
 GPL-2.0-or-later – see `galaxy.yml` for full details.
