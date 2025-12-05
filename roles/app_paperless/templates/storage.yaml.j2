@@ -12,7 +12,7 @@ metadata:
     app.kubernetes.io/managed-by: ansible
 spec:
   capacity:
-    storage: 500Gi
+    storage: {{ paperless_nfs_size }}
   volumeMode: Filesystem
   accessModes:
     - ReadWriteMany
@@ -40,66 +40,4 @@ spec:
   storageClassName: nfs-paperless
   resources:
     requests:
-      storage: 500Gi
----
-# PostgreSQL PVC (Longhorn replicated storage)
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: paperless-postgres-pvc
-  namespace: "{{ paperless_namespace }}"
-  labels:
-    app.kubernetes.io/name: paperless-postgres
-    app.kubernetes.io/instance: paperless
-    app.kubernetes.io/part-of: documents
-    app.kubernetes.io/component: database
-    app.kubernetes.io/managed-by: ansible
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: "{{ paperless_storage_class }}"
-  resources:
-    requests:
-      storage: "{{ paperless_postgres_size }}"
----
-# Redis PVC (Longhorn replicated storage)
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: paperless-redis-pvc
-  namespace: "{{ paperless_namespace }}"
-  labels:
-    app.kubernetes.io/name: paperless-redis
-    app.kubernetes.io/instance: paperless
-    app.kubernetes.io/part-of: documents
-    app.kubernetes.io/component: cache
-    app.kubernetes.io/managed-by: ansible
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: "{{ paperless_storage_class }}"
-  resources:
-    requests:
-      storage: "{{ paperless_redis_size }}"
-{% if paperless_email_enabled | default(false) %}
----
-# Proton Mail Bridge PVC (Longhorn replicated storage - stores GPG keys and config)
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: proton-bridge-pvc
-  namespace: "{{ paperless_namespace }}"
-  labels:
-    app.kubernetes.io/name: proton-bridge
-    app.kubernetes.io/instance: paperless
-    app.kubernetes.io/part-of: documents
-    app.kubernetes.io/component: email
-    app.kubernetes.io/managed-by: ansible
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: "{{ paperless_storage_class }}"
-  resources:
-    requests:
-      storage: "{{ paperless_proton_bridge_size | default('1Gi') }}"
-{% endif %}
+      storage: {{ paperless_nfs_size }}

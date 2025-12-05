@@ -1,28 +1,56 @@
 ---
 - name: Create media namespace
-  kubernetes.core.k8s:
-    name: "{{ media_namespace }}"
-    api_version: v1
-    kind: Namespace
-    state: present
-    definition:
-      metadata:
-        labels:
-          app.kubernetes.io/part-of: media
-          app.kubernetes.io/managed-by: ansible
-        annotations:
-          app.kubernetes.io/description: "Media stack (Sonarr, Radarr, Downloads with VPN)"
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: namespace
+  vars:
+    k8s_namespace: "{{ media_namespace }}"
+    k8s_labels:
+      app.kubernetes.io/name: media
+      app.kubernetes.io/part-of: media
 
 - name: Deploy VPN secrets
   kubernetes.core.k8s:
     state: present
     definition: "{{ lookup('template', 'secret.yaml.j2') | from_yaml }}"
 
-- name: Deploy storage components
+- name: Deploy NFS storage components
   kubernetes.core.k8s:
     state: present
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'storage.yaml.j2') | from_yaml_all | list }}"
+
+- name: Create config PVCs (Sonarr/Radarr/qBittorrent/Jackett/SABnzbd)
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: storage
+  loop:
+    - name: sonarr
+      pvc: sonarr-config-pvc
+      size: "{{ sonarr_config_storage }}"
+    - name: qbittorrent
+      pvc: qbittorrent-config-pvc
+      size: "{{ qbittorrent_config_storage }}"
+    - name: jackett
+      pvc: jackett-config-pvc
+      size: "{{ jackett_config_storage }}"
+    - name: radarr
+      pvc: radarr-config-pvc
+      size: "{{ radarr_config_storage }}"
+    - name: sabnzbd
+      pvc: sabnzbd-config-pvc
+      size: "{{ sabnzbd_config_storage }}"
+  loop_control:
+    loop_var: pvc_item
+  vars:
+    k8s_namespace: "{{ media_namespace }}"
+    k8s_pvc_name: "{{ pvc_item.pvc }}"
+    k8s_pvc_size: "{{ pvc_item.size }}"
+    k8s_pvc_storage_class: "{{ media_storage_class }}"
+    k8s_labels:
+      app.kubernetes.io/name: "{{ pvc_item.name }}"
+      app.kubernetes.io/part-of: media
+      app.kubernetes.io/component: storage
 
 - name: Deploy downloads stack (VPN protected)
   kubernetes.core.k8s:
@@ -43,9 +71,22 @@
   loop: "{{ lookup('template', 'radarr-app.yaml.j2') | from_yaml_all | list }}"
 
 - name: Create TLS Certificate for media services
-  kubernetes.core.k8s:
-    state: present
-    definition: "{{ lookup('template', 'certificate.yaml.j2') | from_yaml }}"
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: certificate
+  vars:
+    k8s_namespace: "{{ media_namespace }}"
+    k8s_cert_name: "{{ media_tls_secret_name }}"
+    k8s_cert_secret_name: "{{ media_tls_secret_name }}"
+    k8s_cert_dns_names:
+      - "{{ sonarr_ingress_host }}"
+      - "{{ radarr_ingress_host }}"
+      - "{{ jackett_ingress_host }}"
+      - "{{ qbittorrent_ingress_host }}"
+      - "{{ sabnzbd_ingress_host }}"
+    k8s_labels:
+      app.kubernetes.io/name: media
+      app.kubernetes.io/part-of: media
   when: media_ingress_enabled | default(true)
 
 - name: Wait for TLS certificate to be ready
@@ -62,10 +103,43 @@
   delay: 10
   when: media_ingress_enabled | default(true)
 
-- name: Deploy media Ingress
-  kubernetes.core.k8s:
-    state: present
-    definition: "{{ lookup('template', 'ingress.yaml.j2') | from_yaml }}"
+- name: Create ingress resources for media apps
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: ingress
+  loop:
+    - name: sonarr
+      host: "{{ sonarr_ingress_host }}"
+      service: sonarr
+      port: 8989
+    - name: radarr
+      host: "{{ radarr_ingress_host }}"
+      service: radarr
+      port: 7878
+    - name: jackett
+      host: "{{ jackett_ingress_host }}"
+      service: downloads
+      port: 9117
+    - name: qbittorrent
+      host: "{{ qbittorrent_ingress_host }}"
+      service: downloads
+      port: 8080
+    - name: sabnzbd
+      host: "{{ sabnzbd_ingress_host }}"
+      service: downloads
+      port: 8085
+  loop_control:
+    loop_var: ingress_item
+  vars:
+    k8s_namespace: "{{ media_namespace }}"
+    k8s_ingress_name: "{{ ingress_item.name }}"
+    k8s_ingress_host: "{{ ingress_item.host }}"
+    k8s_ingress_service_name: "{{ ingress_item.service }}"
+    k8s_ingress_service_port: "{{ ingress_item.port }}"
+    k8s_ingress_tls_secret: "{{ media_tls_secret_name }}"
+    k8s_labels:
+      app.kubernetes.io/name: media
+      app.kubernetes.io/part-of: media
   when: media_ingress_enabled | default(true)
 
 - name: Wait for downloads deployment to be ready

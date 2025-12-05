@@ -1,15 +1,13 @@
 ---
 - name: Create paperless namespace
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Namespace
-      metadata:
-        name: "{{ paperless_namespace }}"
-        labels:
-          app.kubernetes.io/name: paperless
-          app.kubernetes.io/managed-by: ansible
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: namespace
+  vars:
+    k8s_namespace: "{{ paperless_namespace }}"
+    k8s_labels:
+      app.kubernetes.io/name: paperless
+      app.kubernetes.io/part-of: documents
 
 - name: Deploy Paperless secrets
   kubernetes.core.k8s:
@@ -17,47 +15,75 @@
     definition: "{{ item }}"
   loop: "{{ lookup('template', 'secret.yaml.j2') | from_yaml_all | list }}"
 
-- name: Render storage configuration
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/storage.yaml.j2"
-    dest: "/tmp/paperless-storage.yaml"
-    mode: '0644'
-
-- name: Apply storage configuration
+- name: Deploy NFS storage components
   kubernetes.core.k8s:
     state: present
-    src: "/tmp/paperless-storage.yaml"
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'storage.yaml.j2') | from_yaml_all | list }}"
 
-- name: Remove temporary storage file
-  ansible.builtin.file:
-    path: /tmp/paperless-storage.yaml
-    state: absent
+- name: Create application PVCs (Postgres/Redis/Proton Bridge)
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: storage
+  loop:
+    - name: paperless-postgres
+      pvc: paperless-postgres-pvc
+      size: "{{ paperless_postgres_size }}"
+      component: database
+      enabled: true
+    - name: paperless-redis
+      pvc: paperless-redis-pvc
+      size: "{{ paperless_redis_size }}"
+      component: cache
+      enabled: true
+    - name: proton-bridge
+      pvc: proton-bridge-pvc
+      size: "{{ paperless_proton_bridge_size | default('1Gi') }}"
+      component: email
+      enabled: {{ paperless_email_enabled | default(false) }}
+  loop_control:
+    loop_var: pvc_item
+  when: pvc_item.enabled | bool
+  vars:
+    k8s_namespace: "{{ paperless_namespace }}"
+    k8s_pvc_name: "{{ pvc_item.pvc }}"
+    k8s_pvc_size: "{{ pvc_item.size }}"
+    k8s_pvc_storage_class: "{{ paperless_storage_class }}"
+    k8s_labels:
+      app.kubernetes.io/name: "{{ pvc_item.name }}"
+      app.kubernetes.io/instance: paperless
+      app.kubernetes.io/part-of: documents
+      app.kubernetes.io/component: "{{ pvc_item.component }}"
 
-- name: Render Paperless-ngx deployment
-  ansible.builtin.template:
-    src: "{{ role_path }}/templates/paperless.yaml.j2"
-    dest: "/tmp/paperless-deployment.yaml"
-    mode: '0644'
-
-- name: Apply Paperless-ngx deployment
+- name: Deploy Paperless-ngx resources
   kubernetes.core.k8s:
     state: present
-    src: "/tmp/paperless-deployment.yaml"
+    definition: "{{ item }}"
+  loop: "{{ lookup('template', 'paperless.yaml.j2') | from_yaml_all | list }}"
 
-- name: Remove temporary deployment file
-  ansible.builtin.file:
-    path: /tmp/paperless-deployment.yaml
-    state: absent
+- name: Setup Cloudflare tunnel
+  ansible.builtin.include_role:
+    name: util_cloudflare_tunnel
+  vars:
+    cf_tunnel_name: "{{ paperless_cloudflare_tunnel_name }}"
+    cf_tunnel_namespace: "{{ paperless_namespace }}"
+    cf_tunnel_secret_name: "{{ paperless_cloudflare_tunnel_secret_name }}"
+  when: paperless_cloudflare_enabled | default(true)
 
-- name: Check if tunnel credentials are configured
-  ansible.builtin.set_fact:
-    tunnel_configured: "{{ paperless_tunnel_credentials is defined and paperless_tunnel_credentials | length > 0 }}"
-
-- name: Apply Cloudflared tunnel configuration
-  kubernetes.core.k8s:
-    state: present
-    src: "{{ role_path }}/files/cloudflared.yaml"
-  when: tunnel_configured | default(false)
+- name: Deploy Cloudflare tunnel
+  ansible.builtin.include_role:
+    name: common_k8s
+    tasks_from: cloudflare
+  vars:
+    k8s_namespace: "{{ paperless_namespace }}"
+    k8s_cloudflare_tunnel_name: "{{ cf_tunnel_id | default(paperless_cloudflare_tunnel_name) }}"
+    k8s_cloudflare_external_hostname: "{{ paperless_domain }}"
+    k8s_cloudflare_internal_service: "http://paperless.{{ paperless_namespace }}.svc.cluster.local:8000"
+    k8s_cloudflare_secret_name: "{{ paperless_cloudflare_tunnel_secret_name }}"
+    k8s_labels:
+      app.kubernetes.io/name: paperless
+      app.kubernetes.io/part-of: documents
+  when: paperless_cloudflare_enabled | default(true) and (cf_tunnel_configured | default(false))
 
 - name: Wait for PostgreSQL to be ready
   kubernetes.core.k8s_info:
@@ -94,7 +120,7 @@
     msg: |
       Paperless-ngx has been deployed successfully!
 
-      {% if tunnel_configured | default(false) %}
+      {% if cf_tunnel_configured | default(false) %}
       Access URL: https://{{ paperless_domain }}
       {% else %}
       Cloudflare tunnel not configured. For local access:

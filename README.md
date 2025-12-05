@@ -237,8 +237,8 @@ The following roles can be migrated to use the `common_k8s` library to eliminate
 
 ### Application Roles
 - [x] `app_jellyfin` - Migrate certificate, ingress, cloudflare, storage
-- [ ] `app_media` - Migrate certificate, ingress, storage
-- [ ] `app_paperless` - Migrate cloudflare, storage
+- [x] `app_media` - Migrate certificate, ingress, storage
+- [x] `app_paperless` - Migrate cloudflare, storage
 - [ ] `app_plane` - Migrate certificate, ingress, storage
 - [ ] `app_immich` - Migrate certificate, ingress, storage
 - [ ] `app_uptime_kuma` - Check if applicable
