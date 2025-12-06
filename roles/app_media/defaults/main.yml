@@ -41,7 +41,7 @@ qbittorrent_version: "4.6.7"
 jackett_version: "latest"
 sabnzbd_version: "latest"
 flaresolverr_version: "latest"
-gluetun_version: "v3.39.1"
+gluetun_version: "latest"
 
 # Sonarr resources
 sonarr_cpu_request: "100m"
@@ -91,8 +91,13 @@ downloads_node_selector:
   kubernetes.io/arch: "amd64"
 
 # Gluetun VPN configuration (Mullvad)
-gluetun_wireguard_endpoint_ip: "45.134.140.130"
-gluetun_wireguard_endpoint_port: "51820"
-gluetun_wireguard_public_key: "nvyBkaEXHwyPBAm8spGB0TFzf2W5wPAl8EEuJ0t+bzs="
+# Server selection - can combine countries and cities
+# See: https://github.com/qdm12/gluetun-wiki/blob/main/setup/providers/mullvad.md
+gluetun_server_countries: "USA"
+gluetun_server_cities: "Atlanta GA"
+# gluetun_server_hostnames: ""
+# gluetun_wireguard_endpoint_port: "51820"  # Optional, defaults to 51820
+
+# Firewall configuration
 gluetun_firewall_input_ports: "8080,9117,8191,8085"
 gluetun_firewall_outbound_subnets: "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"

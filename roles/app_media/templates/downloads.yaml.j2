@@ -50,15 +50,9 @@ spec:
             runAsUser: 0
           env:
             - name: VPN_SERVICE_PROVIDER
-              value: "custom"
+              value: "mullvad"
             - name: VPN_TYPE
               value: "wireguard"
-            - name: WIREGUARD_ENDPOINT_IP
-              value: "{{ gluetun_wireguard_endpoint_ip }}"
-            - name: WIREGUARD_ENDPOINT_PORT
-              value: "{{ gluetun_wireguard_endpoint_port }}"
-            - name: WIREGUARD_PUBLIC_KEY
-              value: "{{ gluetun_wireguard_public_key }}"
             - name: WIREGUARD_PRIVATE_KEY
               valueFrom:
                 secretKeyRef:
@@ -69,10 +63,24 @@ spec:
                 secretKeyRef:
                   name: downloads-vpn-secrets
                   key: WIREGUARD_ADDRESSES
+{% if gluetun_server_cities is defined and gluetun_server_cities %}
+            - name: SERVER_CITIES
+              value: "{{ gluetun_server_cities }}"
+{% endif %}
+{% if gluetun_server_countries is defined and gluetun_server_countries %}
+            - name: SERVER_COUNTRIES
+              value: "{{ gluetun_server_countries }}"
+{% endif %}
+{% if gluetun_server_hostnames is defined and gluetun_server_hostnames %}
+            - name: SERVER_HOSTNAMES
+              value: "{{ gluetun_server_hostnames }}"
+{% endif %}
+{% if gluetun_wireguard_endpoint_port is defined and gluetun_wireguard_endpoint_port %}
+            - name: WIREGUARD_ENDPOINT_PORT
+              value: "{{ gluetun_wireguard_endpoint_port }}"
+{% endif %}
             - name: TZ
               value: "{{ media_timezone }}"
-            - name: DNS_UPSTREAM_RESOLVER_TYPE
-              value: "plain"
             - name: FIREWALL_VPN_INPUT_PORTS
               value: "{{ gluetun_firewall_input_ports }}"
             - name: FIREWALL_OUTBOUND_SUBNETS
